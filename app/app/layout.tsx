@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Miniapp Boilerplate",
-  description: "Next.js + shadcn starter for Circles miniapps",
+  title: "Quorum",
+  description:
+    "A crowd plays Connect Four against a bot — every move a trust-gated, staked vote.",
 };
 
 export default function RootLayout({
