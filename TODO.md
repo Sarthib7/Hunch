@@ -1,25 +1,27 @@
 # Quorum — what's left to do
 
-**Status:** v1 build complete (tasks 1–8) — one integrated codebase, builds + lints
-clean, running on localhost. **Not deployed. Not tested end-to-end.** Everything
-between here and a working Garage submission is below.
+**Status (2026-05-21):** v1 build complete — builds + lints clean. Supabase fully
+wired and verified; vote ingestion verified against the live indexer and fixed
+(§3). **Not deployed. Not tested end-to-end.** What's left for a Garage
+submission is below.
 
-**Who does what:** §1–2 are your accounts/setup; §3 you run and I fix. Until §1 is
-in, nothing in the backend can run.
+**Who does what:** §1–2 are your accounts/setup; §3 you run and I fix.
 
-## 1. Blockers (you) — the backend can't run without these
+## 1. Blockers (you)
 
-1. **Real service-role key** → `app/.env.local`, `SUPABASE_SERVICE_ROLE_KEY`.
-   It currently holds the *publishable* key — the wrong one. The backend needs the
-   real `service_role` (secret) key to write to the DB; without it the cron, round
-   resolution, and vote recording all fail. Supabase dashboard → Settings → API.
-2. **Pool address** → `app/.env.local`, `NEXT_PUBLIC_POOL_ADDRESS`.
-   Create a dedicated **Organisation avatar** in the Circles app; have it **trust
-   your demo-crowd avatars** so their stakes can transfer in; paste its address.
-3. **Demo crowd** — ~5 trust-verified Circles avatars (yours + recruited), so the
-   trust gate and the vote flow can actually be exercised.
+1. ~~Real service-role key~~ — **done.** Both Supabase keys verified; the
+   service-role key authenticates and bypasses RLS, so the backend can write.
+2. **Register the pool.** The keypair is generated and already in
+   `app/.env.local` (`NEXT_PUBLIC_POOL_ADDRESS` = `0xFf515429…`, plus
+   `POOL_DEPLOYER_KEY`). To finish it:
+   - Fund `0xFf515429c88cc545B8D6A7965171D87FaCA3904A` with ~0.01 **xDAI** for
+     gas — CRC cannot pay gas. A Gnosis faucet or your own wallet.
+   - Then `scripts/register-pool.mjs` runs — it registers the Organisation avatar.
+3. **Demo crowd** — ~5 trust-verified Circles avatars + 1 zero-trust. Collect
+   their addresses; the pool then trusts them via `scripts/trust-voters.mjs`
+   (one action — it both lets stakes settle and satisfies the Sybil gate).
 
-_Restart the dev server after any `.env.local` change._
+_Restart the dev server after any `.env.local` change — Next reads it only at startup._
 
 ## 2. Deploy — task 9 (you) — step-by-step in `SUBMISSION.md`
 
@@ -30,21 +32,28 @@ _Restart the dev server after any `.env.local` change._
 
 ## 3. Test + fix (you run it, I fix) — the "it builds → it works" gap
 
+**Vote ingestion (`lib/round/votes.ts`) — verified + fixed (2026-05-21).** Probed
+against the live Circles indexer; two bugs that would have failed *every* vote
+are now fixed: the metadata `data` field comes back `\x`-encoded (normalised to
+`0x` before decoding), and the stake amount lives on a separate
+`CrcV2_TransferSingle` event (now correlated by transaction). Token-id derivation
+and the encode/decode round-trip are confirmed correct.
+
 - [ ] Run the end-to-end test in the Circles playground (`SUBMISSION.md` §6):
       cron creates a game → a verified avatar votes → the vote lands in the tally
       → the round resolves → the bot replies.
-- [ ] **Two unverified spots** — each needs one real on-chain transfer to confirm.
-      If a vote sends but never registers, the bug is in one of these:
-  - `lib/circles/vote.ts` — the CRC stake-transfer construction.
-  - `lib/round/votes.ts` → `parseStakeEvent` — the `circles_events` event shape.
-- [ ] **On me:** fix whatever the first real run surfaces — the two spots above
-      and anything else.
+- [ ] **One assumption still needs a live run:** that a direct `safeTransferFrom`
+      voter→pool settles (`vote.ts` assumption 2 — the pool must trust the voter).
+      If a vote sends but never registers, send me the `/api/cron` output.
+- [ ] **On me:** fix whatever the first real run surfaces.
 
 ## 4. Known minor gaps (acceptable for v1)
 
 - Dev hydration warning — the `<html>` font class differs server vs client (Geist
   CSS-module). Cosmetic; confirm it doesn't appear in the production build.
 - Win payout is **manual** — the UI shows the pool; the operator sends the CRC.
+- The pool is an EOA-controlled Organisation avatar — fine for the v1 demo;
+  migrate it to a Safe before it holds anything beyond hackathon stakes.
 - "Quorum" is still a working name (`PROJECT.md` has candidates).
 
 ## 5. Roadmap — explicitly NOT v1 (`PRD.md` §11)
