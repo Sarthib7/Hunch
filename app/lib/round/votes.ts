@@ -10,22 +10,30 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { ANTE_CRC } from "./config";
 
 const CIRCLES_RPC = "https://rpc.aboutcircles.com/";
-const POOL_ADDRESS = process.env.NEXT_PUBLIC_POOL_ADDRESS;
-const ATTO = 10n ** 18n;
+const POOL_ADDRESS = process.env.NEXT_PUBLIC_POOL_ADDRESS?.toLowerCase();
 
-// ── Parsing circles_events ────────────────────────────────────────────────
-// The metadata decode is verified against the SDK types: encodeCrcV2TransferData
-// with type 0x0001 round-trips to `decoded.payload` (a single string).
+// ── circles_events shapes — verified against the live indexer (2026-05-21) ──
 //
-// ASSUMPTION (best-effort, unverified): the *event envelope* field names of a
-// circles_events `CrcV2_TransferData` event (txHash / from / value). They are
-// isolated in `parseStakeEvent` — once a real stake transfer can be inspected,
-// correct it here and nowhere else.
+// A stake-vote is one safeTransferFrom on the Hub; the indexer surfaces it as
+// TWO events that share a transactionHash, each under an { event, values }
+// envelope:
+//   • CrcV2_TransferData   { from, to, data, transactionHash } — the vote
+//       reference, carried in `data`. Has NO amount field.
+//   • CrcV2_TransferSingle { from, to, id, value, transactionHash } — the
+//       ERC-1155 token movement and its `value` (atto-CRC). Has NO metadata.
+//
+// Two gotchas the live data exposed (each previously a bug here):
+//   1. `data` comes back Postgres-bytea encoded ("\x01…"), not "0x01…", so it
+//      must be normalised before decodeCrcV2TransferData (which expects 0x).
+//   2. The amount is not on the TransferData event — it must be correlated
+//      from the TransferSingle event of the same transaction.
+//
+// Still unverified (needs one real on-chain stake into a registered pool):
+// that a direct safeTransferFrom voter→pool succeeds — see vote.ts assumption 2.
 
 interface StakeEvent {
   txHash: string;
   from: string;
-  amountCrc: number;
   reference: string;
 }
 
@@ -39,30 +47,29 @@ function str(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function attoToCrc(value: unknown): number {
-  try {
-    return Number(BigInt(str(value) || "0") / ATTO);
-  } catch {
-    return 0;
-  }
+/** Normalise an indexer hex string (`\x…` bytea or `0x…`) to a `0x` hex string. */
+function toHex(value: string): string {
+  if (value.startsWith("\\x")) return `0x${value.slice(2)}`;
+  if (value.startsWith("0x")) return value;
+  return `0x${value}`;
 }
 
+/** Parse a CrcV2_TransferData event into a stake-vote candidate (no amount). */
 function parseStakeEvent(raw: unknown): StakeEvent | null {
-  const event = asRecord(raw);
-  if (!event) return null;
-  // Transfer fields may be nested under `values` or exposed flat.
-  const fields = asRecord(event.values) ?? event;
+  const fields = asRecord(asRecord(raw)?.values);
+  if (!fields) return null;
 
-  const txHash = str(
-    event.transactionHash ?? event.txHash ?? fields.transactionHash,
-  );
-  const from = str(fields.from ?? fields.sender).toLowerCase();
-  const data = fields.data ?? event.data;
-  if (!txHash || !from || typeof data !== "string") return null;
+  const txHash = str(fields.transactionHash);
+  const from = str(fields.from).toLowerCase();
+  const to = str(fields.to).toLowerCase();
+  const data = fields.data;
+  if (!txHash || !from || to !== POOL_ADDRESS || typeof data !== "string") {
+    return null;
+  }
 
   let reference: string;
   try {
-    const decoded = decodeCrcV2TransferData(data);
+    const decoded = decodeCrcV2TransferData(toHex(data));
     // Quorum encodes the vote as a single 0x0001 UTF-8 string.
     if (decoded.type !== 0x0001 || typeof decoded.payload !== "string") {
       return null;
@@ -72,31 +79,43 @@ function parseStakeEvent(raw: unknown): StakeEvent | null {
     return null;
   }
 
-  return {
-    txHash,
-    from,
-    amountCrc: attoToCrc(fields.value ?? fields.amount),
-    reference,
-  };
+  return { txHash, from, reference };
 }
 
-// ── Recording votes ───────────────────────────────────────────────────────
-
 /**
- * Poll the Circles indexer for stake transfers into the pool and record any
- * that aren't yet on file. Returns the number of new votes recorded.
+ * Sum, per transaction, the atto-CRC that landed in the pool — read from
+ * CrcV2_TransferSingle events, since CrcV2_TransferData carries no amount.
  */
-export async function recordNewVotes(): Promise<number> {
-  if (!POOL_ADDRESS) return 0; // pool not configured yet
+function inboundByTx(rawEvents: unknown[]): Map<string, bigint> {
+  const totals = new Map<string, bigint>();
+  for (const raw of rawEvents) {
+    const fields = asRecord(asRecord(raw)?.values);
+    if (!fields) continue;
+    const txHash = str(fields.transactionHash);
+    const to = str(fields.to).toLowerCase();
+    if (!txHash || to !== POOL_ADDRESS) continue;
+    try {
+      const value = BigInt(str(fields.value) || "0");
+      totals.set(txHash, (totals.get(txHash) ?? 0n) + value);
+    } catch {
+      // non-numeric value — skip
+    }
+  }
+  return totals;
+}
 
+/** Fetch one event type for the pool from the Circles indexer. */
+async function fetchEvents(eventType: string): Promise<unknown[]> {
   const res = await fetch(CIRCLES_RPC, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    // [address, fromBlock, toBlock, eventTypes]. The indexer returns at most
+    // the 100 most recent matches — ample for a single demo game.
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
       method: "circles_events",
-      params: [POOL_ADDRESS, null, null, ["CrcV2_TransferData"]],
+      params: [POOL_ADDRESS, null, null, [eventType]],
     }),
   });
   if (!res.ok) throw new Error(`circles_events RPC returned ${res.status}`);
@@ -107,13 +126,30 @@ export async function recordNewVotes(): Promise<number> {
   if (json.error) {
     throw new Error(`circles_events error: ${json.error.message ?? "unknown"}`);
   }
+  return json.result ?? [];
+}
+
+/**
+ * Poll the Circles indexer for stake transfers into the pool and record any
+ * that aren't yet on file. Returns the number of new votes recorded.
+ */
+export async function recordNewVotes(): Promise<number> {
+  if (!POOL_ADDRESS) return 0; // pool not configured yet
+
+  const [transferData, transferSingle] = await Promise.all([
+    fetchEvents("CrcV2_TransferData"),
+    fetchEvents("CrcV2_TransferSingle"),
+  ]);
+  const inbound = inboundByTx(transferSingle);
 
   let recorded = 0;
-  for (const raw of json.result ?? []) {
+  for (const raw of transferData) {
     const stake = parseStakeEvent(raw);
     if (!stake) continue;
     const vote = parseVoteReference(stake.reference);
-    if (vote && (await recordVote(stake, vote))) recorded += 1;
+    if (!vote) continue;
+    const stakedAtto = inbound.get(stake.txHash) ?? 0n;
+    if (await recordVote(stake, vote, stakedAtto)) recorded += 1;
   }
   return recorded;
 }
@@ -122,8 +158,14 @@ export async function recordNewVotes(): Promise<number> {
 async function recordVote(
   stake: StakeEvent,
   vote: { roundId: string; move: number },
+  stakedAtto: bigint,
 ): Promise<boolean> {
   const db = supabaseAdmin();
+
+  // The transfer must actually have moved CRC into the pool. The flat 1-CRC
+  // ante is enforced client-side by buildStakeVoteTx; here we only reject a
+  // transfer that staked nothing — a metadata-only / zero-value spoof.
+  if (stakedAtto <= 0n) return false;
 
   // Idempotency — this transfer already on file?
   const { data: existing } = await db
@@ -144,9 +186,6 @@ async function recordVote(
   // The move must be legal in the round's position.
   const state = connectFour.deserialize(round.board_before);
   if (!connectFour.legalMoves(state).includes(vote.move)) return false;
-
-  // The stake must cover the flat ante.
-  if (stake.amountCrc < ANTE_CRC) return false;
 
   // The voter must be trust-verified — the Sybil gate. Fail closed.
   try {

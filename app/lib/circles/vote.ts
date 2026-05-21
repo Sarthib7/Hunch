@@ -5,14 +5,16 @@ import { ANTE_CRC } from "@/lib/round/config";
 
 import { HUB_V2_ADDRESS, safeTransferFromAbi, toTokenId } from "./hub";
 
-// ASSUMPTIONS — best-effort, unverified until runtime-tested against a real avatar:
-//  1. A personal-CRC ERC-1155 token id == the avatar address as a uint256.
-//  2. A direct safeTransferFrom of personal CRC (voter -> pool) succeeds because
-//     the pool Organisation avatar trusts the voter (see the PRD pool design).
+// ASSUMPTIONS:
+//  1. [VERIFIED 2026-05-21] A personal-CRC ERC-1155 token id == the avatar
+//     address as a uint256 — confirmed against a live CrcV2_TransferSingle event.
+//  2. [UNVERIFIED — needs one real on-chain stake] A direct safeTransferFrom of
+//     personal CRC (voter -> pool) succeeds because the pool Organisation avatar
+//     trusts the voter (see scripts/trust-voters.mjs and the PRD pool design).
 //     If a voter -> pool transfer needs pathfinder routing, switch to
 //     TransferBuilder.constructAdvancedTransfer from @aboutcircles/sdk-transfers.
-//  3. encodeCrcV2TransferData metadata placed in the ERC-1155 `_data` is surfaced
-//     by the indexer as a CrcV2_TransferData event (per recipes/payment-intent.md).
+//  3. [VERIFIED 2026-05-21] encodeCrcV2TransferData metadata placed in the
+//     ERC-1155 `_data` is surfaced by the indexer as a CrcV2_TransferData event.
 
 /** Pool Organisation avatar — receives stakes and pays winners out. */
 const POOL_ADDRESS = process.env.NEXT_PUBLIC_POOL_ADDRESS;
