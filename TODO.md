@@ -1,8 +1,9 @@
 # Quorum — what's left to do
 
-**Status (2026-05-21):** v1 build complete — builds + lints clean. Supabase fully
+**Status (2026-05-22):** v1 build complete — builds + lints clean. Supabase fully
 wired and verified; vote ingestion verified against the live indexer and fixed
-(§3). **Not deployed. Not tested end-to-end.** What's left for a Garage
+(§3). Pool funded + registered on-chain and voter #1 trusted — audit trail in
+`docs/sadr/`. **Not deployed. Not tested end-to-end.** What's left for a Garage
 submission is below.
 
 **Who does what:** §1–2 are your accounts/setup; §3 you run and I fix.
@@ -11,15 +12,15 @@ submission is below.
 
 1. ~~Real service-role key~~ — **done.** Both Supabase keys verified; the
    service-role key authenticates and bypasses RLS, so the backend can write.
-2. **Register the pool.** The keypair is generated and already in
-   `app/.env.local` (`NEXT_PUBLIC_POOL_ADDRESS` = `0xFf515429…`, plus
-   `POOL_DEPLOYER_KEY`). To finish it:
-   - Fund `0xFf515429c88cc545B8D6A7965171D87FaCA3904A` with ~0.01 **xDAI** for
-     gas — CRC cannot pay gas. A Gnosis faucet or your own wallet.
-   - Then `scripts/register-pool.mjs` runs — it registers the Organisation avatar.
-3. **Demo crowd** — ~5 trust-verified Circles avatars + 1 zero-trust. Collect
-   their addresses; the pool then trusts them via `scripts/trust-voters.mjs`
-   (one action — it both lets stakes settle and satisfies the Sybil gate).
+2. ~~Register the pool.~~ — **done (2026-05-22).** Pool funded with ~0.1 xDAI
+   and registered as the "Quorum Pool" Organisation avatar
+   (`0xFf515429c88cc545B8D6A7965171D87FaCA3904A`). Evidence:
+   `docs/sadr/0003-pool-funded-for-gas.md`,
+   `docs/sadr/0004-pool-registered-organisation.md`.
+3. **Demo crowd** — ~5 trust-verified Circles avatars + 1 zero-trust. **1 of ~6
+   done** — voter #1 trusted (`docs/sadr/0005-voter-1-verified-trusted.md`).
+   Collect the rest; the pool trusts each via `scripts/trust-voters.mjs` (one
+   action — it both lets stakes settle and satisfies the Sybil gate).
 
 _Restart the dev server after any `.env.local` change — Next reads it only at startup._
 

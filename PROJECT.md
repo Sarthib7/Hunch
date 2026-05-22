@@ -56,6 +56,7 @@ and the end-to-end playground test. Deploy how-to: `SUBMISSION.md`.
 - `PRD.md` — full requirements (v1.0)
 - `ideas.md` — the original brainstorm (superseded)
 - `.claude/skills/circles/` — Circles build skill (SDK, recipes, submission)
+- `docs/adr/` — architecture decision records · `docs/sadr/` — on-chain setup audit trail
 - Boilerplate: `aboutcircles/embedded-miniapp-boilerplate` · Submission: PR to `aboutcircles/CirclesMiniapps` → `static/miniapps.json` · Playground: `circles.gnosis.io/playground`
 
 ## Decisions log
@@ -65,3 +66,4 @@ and the end-to-end playground test. Deploy how-to: `SUBMISSION.md`.
 - **2026-05-20 (grill)** — locked: mainnet; N ≥ 1; ante 1 CRC; round timer 8h/2min; pool = Organisation avatar; manual v1 payout; empty opening pot; demo crowd = ~5 real avatars (no seeding); Vercel. Decentralization analysed — votes are on-chain, backend is an auditable cache; Swarm archive → roadmap. PRD finalised to v1.0.
 - **2026-05-20 (build)** — App scaffolded in `app/` (Next 16 boilerplate). Done + build-verified: Connect Four engine/bot (`lib/games/`), trust-verification query (`lib/circles/trust.ts`), vote-mode board (`components/game/Board.tsx`), `/game` route. EIP-1271 server sign-in descoped (host address + on-chain votes suffice). Supabase project for Quorum = `pqeqkksdscynmxjlztzx`; `.mcp.json` repointed to it. **Next:** restart Claude Code to load the MCP → authenticate Supabase → schema → round machine → voting → payout.
 - **2026-05-20 (build complete)** — tasks 1–8 built and build-verified; the game is the home route (`/`), boilerplate demo pages removed. Task 9 build parts done — `SUBMISSION.md` is the deploy runbook. Remaining: the user deploys to Vercel + opens the marketplace PR. Untested end-to-end — see `SUBMISSION.md` §6 and the two flagged spots (`lib/circles/vote.ts`, `lib/round/votes.ts`).
+- **2026-05-22 (setup + audit)** — Pool funded (~0.1 xDAI) and registered on-chain as the "Quorum Pool" Organisation avatar; voter #1 verified and trusted. Architecture decisions extracted into `docs/adr/`; on-chain setup actions recorded in `docs/sadr/`. Open question raised on the Sybil gate (ADR-0003): the pool's own trust edge satisfies the `trustedByCount ≥ 1` check, so as wired it behaves as an operator allowlist — verify against `app/lib/circles/trust.ts`.
