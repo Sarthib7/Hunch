@@ -21,6 +21,20 @@ export const safeTransferFromAbi = [
   },
 ] as const;
 
+/** Hub v2 `isTrusted(truster, trustee)` — true when `truster` trusts `trustee`. */
+export const isTrustedAbi = [
+  {
+    type: "function",
+    name: "isTrusted",
+    stateMutability: "view",
+    inputs: [
+      { name: "_truster", type: "address" },
+      { name: "_trustee", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
+
 /** An avatar's personal-CRC ERC-1155 token id is its address as a uint256. */
 export function toTokenId(avatar: string): bigint {
   return BigInt(avatar);

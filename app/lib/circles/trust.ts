@@ -1,69 +1,116 @@
 // Trust verification — Quorum's Sybil firewall.
 //
-// An avatar may vote only if it is "trust-verified": at least TRUST_THRESHOLD
-// other avatars trust it on the Circles graph (incoming trust edges). v1 uses
-// a deliberately low threshold of 1 — see PRD.md §4. The Circles trust graph
-// IS the voter registry; this module is the gate.
+// An avatar may vote if it is "trust-verified". It qualifies in either of two
+// ways:
+//   1. The Quorum pool trusts it on-chain (Hub v2 `isTrusted`). This is the
+//      authoritative voter registry — scripts/trust-voters.mjs adds the edges.
+//   2. At least TRUST_THRESHOLD other avatars trust it on the Circles graph.
+//
+// Why both: the Circles indexer's `trustStats.trustedByCount` does not reflect
+// trust edges from an Organisation avatar, and the pool IS an Organisation — so
+// the pool's own trust never appears in that count. The on-chain `isTrusted`
+// check is the reliable signal for the curated demo crowd; the indexer count
+// keeps genuine community trust meaningful. See docs/adr/0003.
 
-/** Minimum incoming trust edges for an avatar to count as a verified voter. */
+import { createPublicClient, http } from "viem";
+import { gnosis } from "viem/chains";
+
+import { HUB_V2_ADDRESS, isTrustedAbi } from "./hub";
+
+/** Minimum incoming community-trust edges for an avatar to count as verified. */
 export const TRUST_THRESHOLD = 1;
 
-/** Circles indexer JSON-RPC endpoint (Gnosis Chain mainnet). */
+/** Circles indexer JSON-RPC endpoint — also serves Gnosis `eth_call`. */
 const CIRCLES_RPC = "https://rpc.aboutcircles.com/";
+
+/** The Quorum staking-pool Organisation avatar. */
+const POOL_ADDRESS = process.env.NEXT_PUBLIC_POOL_ADDRESS;
+
+/** Read-only Gnosis client for on-chain trust lookups. */
+const gnosisClient = createPublicClient({
+  chain: gnosis,
+  transport: http(CIRCLES_RPC),
+});
 
 export interface TrustStatus {
   address: string;
-  /** Incoming trust edges — how many avatars trust this one. */
+  /** Incoming community-trust edges, per the Circles indexer. */
   trustedBy: number;
+  /** Whether the Quorum pool has trusted this avatar on-chain. */
+  poolTrusted: boolean;
   /** Whether this is a registered Circles avatar at all. */
   registered: boolean;
-  /** Whether this avatar may vote (trustedBy >= TRUST_THRESHOLD). */
+  /** Whether this avatar may vote. */
   verified: boolean;
 }
 
 interface ProfileViewResult {
   avatarInfo?: unknown;
-  // The indexer returns trust counts as `trustsCount` / `trustedByCount`
-  // (confirmed against the live RPC and the boilerplate's ProfileLookup).
+  // The indexer returns trust counts as `trustsCount` / `trustedByCount`.
   trustStats?: { trustsCount?: number; trustedByCount?: number };
 }
 
+/** True if the Quorum pool trusts `address` on the Circles Hub (on-chain). */
+async function poolTrusts(address: string): Promise<boolean> {
+  if (!POOL_ADDRESS) return false;
+  try {
+    return await gnosisClient.readContract({
+      address: HUB_V2_ADDRESS,
+      abi: isTrustedAbi,
+      functionName: "isTrusted",
+      args: [POOL_ADDRESS as `0x${string}`, address as `0x${string}`],
+    });
+  } catch {
+    return false;
+  }
+}
+
+/** Community-trust standing + registration, from the Circles indexer. */
+async function getCommunityTrust(
+  address: string,
+): Promise<{ trustedBy: number; registered: boolean }> {
+  try {
+    const res = await fetch(CIRCLES_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "circles_getProfileView",
+        params: [address],
+      }),
+    });
+    if (!res.ok) return { trustedBy: 0, registered: false };
+    const json = (await res.json()) as {
+      result?: ProfileViewResult;
+      error?: unknown;
+    };
+    if (json.error || !json.result) {
+      return { trustedBy: 0, registered: false };
+    }
+    return {
+      trustedBy: json.result.trustStats?.trustedByCount ?? 0,
+      registered: Boolean(json.result.avatarInfo),
+    };
+  } catch {
+    return { trustedBy: 0, registered: false };
+  }
+}
+
 /**
- * Look up an avatar's trust standing on the Circles graph.
- * Throws on network / RPC failure — callers should fail closed
- * (treat an un-checkable address as unverified).
+ * Look up an avatar's vote eligibility on Quorum.
+ * Fails closed: an avatar that cannot be checked is treated as unverified.
  */
 export async function getTrustStatus(address: string): Promise<TrustStatus> {
-  const res = await fetch(CIRCLES_RPC, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "circles_getProfileView",
-      params: [address],
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Circles RPC returned ${res.status} for ${address}`);
-  }
-
-  const json = (await res.json()) as {
-    result?: ProfileViewResult;
-    error?: { message?: string };
-  };
-  if (json.error) {
-    throw new Error(
-      `Circles RPC error for ${address}: ${json.error.message ?? "unknown"}`,
-    );
-  }
-
-  const trustedBy = json.result?.trustStats?.trustedByCount ?? 0;
+  const [poolTrusted, community] = await Promise.all([
+    poolTrusts(address),
+    getCommunityTrust(address),
+  ]);
   return {
     address,
-    trustedBy,
-    registered: Boolean(json.result?.avatarInfo),
-    verified: trustedBy >= TRUST_THRESHOLD,
+    trustedBy: community.trustedBy,
+    poolTrusted,
+    registered: community.registered || poolTrusted,
+    verified: poolTrusted || community.trustedBy >= TRUST_THRESHOLD,
   };
 }
