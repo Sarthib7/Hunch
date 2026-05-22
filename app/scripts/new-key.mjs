@@ -1,5 +1,5 @@
 /**
- * Generates a fresh secp256k1 keypair for the Quorum pool deployer.
+ * Generates a fresh secp256k1 keypair for the Hunch pool deployer.
  *
  * Prints the private key (keep secret — this is POOL_DEPLOYER_KEY) and the
  * address derived from it (fund THIS with xDAI; it becomes the pool avatar).

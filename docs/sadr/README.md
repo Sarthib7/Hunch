@@ -1,7 +1,7 @@
 # Audit & Evidence Records (SADR)
 
 SADRs are the **proof** half of the docs: chunked, dated, indexed records of
-every setup action and on-chain transaction taken to stand Quorum up. Where
+every setup action and on-chain transaction taken to stand Hunch up. Where
 [ADRs](../adr/) record *why* a decision was made, an SADR records *what was
 done* and *how it was verified* — tx hashes, addresses, gas costs, command
 output.
@@ -32,7 +32,7 @@ Notes**. Status is one of `Verified` · `Pending` · `Failed`.
 
 | Role | Address |
 |------|---------|
-| Quorum pool (Organisation avatar) | `0xFf515429c88cc545B8D6A7965171D87FaCA3904A` |
+| Hunch pool (Organisation avatar) | `0xFf515429c88cc545B8D6A7965171D87FaCA3904A` |
 | Circles Hub v2 (Gnosis mainnet) | `0xc12C1E50ABB450d6205Ea2C3Fa861b3B834d13e8` |
 | Voter #1 ("Sarthi", human avatar) | `0xbD81E980a4133e64A83A2Cd28Ce9aa019e0Fb44d` |
 

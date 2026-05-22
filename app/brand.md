@@ -1,4 +1,4 @@
-# Brand — Quorum
+# Brand — Hunch
 
 _Status: deferred_
 

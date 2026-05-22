@@ -70,7 +70,7 @@ function parseStakeEvent(raw: unknown): StakeEvent | null {
   let reference: string;
   try {
     const decoded = decodeCrcV2TransferData(toHex(data));
-    // Quorum encodes the vote as a single 0x0001 UTF-8 string.
+    // Hunch encodes the vote as a single 0x0001 UTF-8 string.
     if (decoded.type !== 0x0001 || typeof decoded.payload !== "string") {
       return null;
     }

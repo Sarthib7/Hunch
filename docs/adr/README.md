@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-ADRs capture the **why** behind Quorum's significant, hard-to-reverse design
+ADRs capture the **why** behind Hunch's significant, hard-to-reverse design
 choices — one short, numbered, dated record per decision. An accepted ADR is not
 rewritten; if a decision changes, a new ADR supersedes it.
 

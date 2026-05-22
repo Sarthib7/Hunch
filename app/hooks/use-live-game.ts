@@ -70,7 +70,7 @@ export function useLiveGame(): { live: LiveGame; refetch: () => void } {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refetch();
     const channel = supabase
-      .channel("quorum-live")
+      .channel("hunch-live")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "games" },

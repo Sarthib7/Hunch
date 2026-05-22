@@ -1,5 +1,5 @@
 /**
- * Registers a Circles v2 Organisation avatar to serve as Quorum's staking pool.
+ * Registers a Circles v2 Organisation avatar to serve as Hunch's staking pool.
  *
  * Why an Organisation: it never mints personal CRC (no UBI), so the pool's
  * balance is exactly the CRC staked into it — clean accounting. On-chain, the
@@ -28,7 +28,7 @@ import { privateKeyToAccount } from "viem/accounts";
 const HUB_V2 = "0xc12C1E50ABB450d6205Ea2C3Fa861b3B834d13e8";
 /** No profile metadata — fine for a pool; a profile can be added later. */
 const ZERO_DIGEST = `0x${"0".repeat(64)}`;
-const ORG_NAME = "Quorum Pool";
+const ORG_NAME = "Hunch Pool";
 
 const ABI = [
   {

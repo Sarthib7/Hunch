@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Quorum",
+  title: "Hunch",
   description:
     "A crowd plays Connect Four against a bot — every move a trust-gated, staked vote.",
 };

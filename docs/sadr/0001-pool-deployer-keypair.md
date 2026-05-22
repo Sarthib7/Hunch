@@ -7,7 +7,7 @@
 
 ## What
 
-Generated a fresh secp256k1 EOA keypair to deploy and control the Quorum staking
+Generated a fresh secp256k1 EOA keypair to deploy and control the Hunch staking
 pool, using `app/scripts/new-key.mjs` (viem `generatePrivateKey` +
 `privateKeyToAccount`).
 

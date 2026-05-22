@@ -1,9 +1,9 @@
 /**
- * Makes the Quorum pool Organisation trust a set of voter avatars.
+ * Makes the Hunch pool Organisation trust a set of voter avatars.
  *
  * Why: a vote is a CRC stake-transfer from the voter into the pool. The pool
  * trusting each voter (a) lets that transfer settle, and (b) gives each voter
- * an incoming trust edge — which is exactly what Quorum's Sybil gate checks
+ * an incoming trust edge — which is exactly what Hunch's Sybil gate checks
  * (trustedByCount >= 1). One action, both jobs.
  *
  * Run this AFTER scripts/register-pool.mjs has registered the pool.

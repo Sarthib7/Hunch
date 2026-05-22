@@ -6,7 +6,7 @@
 
 ## Context
 
-Quorum must make the Circles trust graph *load-bearing* — the Garage bar is that
+Hunch must make the Circles trust graph *load-bearing* — the Garage bar is that
 Circles is essential to the app, not decorative. The build strategy is one
 mini-app iterated every cycle, so the core mechanic has to be durable.
 

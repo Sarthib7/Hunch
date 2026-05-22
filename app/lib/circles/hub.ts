@@ -1,4 +1,4 @@
-// Circles Hub v2 — contract address and the slice of its ABI Quorum needs.
+// Circles Hub v2 — contract address and the slice of its ABI Hunch needs.
 
 /** Circles Hub v2 on Gnosis Chain mainnet. */
 export const HUB_V2_ADDRESS =

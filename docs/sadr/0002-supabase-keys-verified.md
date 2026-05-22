@@ -7,7 +7,7 @@
 
 ## What
 
-Provisioned the Supabase project backing Quorum's coordinator (Postgres +
+Provisioned the Supabase project backing Hunch's coordinator (Postgres +
 Realtime) and placed its keys in `app/.env.local`.
 
 ## Evidence

@@ -1,4 +1,4 @@
-# Quorum — what's left to do
+# Hunch — what's left to do
 
 **Status (2026-05-22):** v1 build complete — builds + lints clean. Supabase fully
 wired and verified; vote ingestion verified against the live indexer and fixed
@@ -13,7 +13,7 @@ submission is below.
 1. ~~Real service-role key~~ — **done.** Both Supabase keys verified; the
    service-role key authenticates and bypasses RLS, so the backend can write.
 2. ~~Register the pool.~~ — **done (2026-05-22).** Pool funded with ~0.1 xDAI
-   and registered as the "Quorum Pool" Organisation avatar
+   and registered as the "Hunch Pool" Organisation avatar
    (`0xFf515429c88cc545B8D6A7965171D87FaCA3904A`). Evidence:
    `docs/sadr/0003-pool-funded-for-gas.md`,
    `docs/sadr/0004-pool-registered-organisation.md`.
@@ -55,7 +55,7 @@ and the encode/decode round-trip are confirmed correct.
 - Win payout is **manual** — the UI shows the pool; the operator sends the CRC.
 - The pool is an EOA-controlled Organisation avatar — fine for the v1 demo;
   migrate it to a Safe before it holds anything beyond hackathon stakes.
-- "Quorum" is still a working name (`PROJECT.md` has candidates).
+- Name finalised: **Hunch** — renamed from "Quorum" on 2026-05-22.
 
 ## 5. Roadmap — explicitly NOT v1 (`PRD.md` §11)
 

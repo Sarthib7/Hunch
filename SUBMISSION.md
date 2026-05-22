@@ -1,4 +1,4 @@
-# Quorum — Garage submission runbook
+# Hunch — Garage submission runbook
 
 Tasks 1–8 are built and compiling. This is task 9 — the build parts are done; the
 rest needs your accounts.
@@ -15,14 +15,14 @@ Settings → Environment Variables, set:
 | `SUPABASE_SERVICE_ROLE_KEY` | the Supabase **service-role / secret** key |
 | `NEXT_PUBLIC_POOL_ADDRESS` | the pool Organisation avatar address |
 | `CRON_SECRET` | any random string (protects `/api/cron`) |
-| `QUORUM_ROUND_MS` | `120000` for a 2-minute demo round (omit for the 8h default) |
+| `HUNCH_ROUND_MS` | `120000` for a 2-minute demo round (omit for the 8h default) |
 
 ## 2. Deploy to Vercel
 
 - Simplest: `cd app && npx vercel` — deploys directly, no git needed.
 - Or connect a GitHub repo with **Root Directory** set to `app/`.
 - Framework preset: Next.js; build/output settings: defaults.
-- Note the URL, e.g. `https://quorum-xyz.vercel.app`.
+- Note the URL, e.g. `https://hunch-xyz.vercel.app`.
 
 ## 3. Schedule the cron
 
@@ -40,8 +40,8 @@ Open a PR to `aboutcircles/CirclesMiniapps` (against `master`) adding this to
 
 ```json
 {
-  "slug": "quorum",
-  "name": "Quorum",
+  "slug": "hunch",
+  "name": "Hunch",
   "logo": "",
   "url": "https://<deploy>/",
   "description": "A crowd plays Connect Four against a bot — every move a trust-gated, staked vote.",
@@ -52,7 +52,7 @@ Open a PR to `aboutcircles/CirclesMiniapps` (against `master`) adding this to
 ```
 
 - `logo`: empty string → a first-letter "Q" tile. Add a square PNG (≥ 64×64) later if you want.
-- PR title: `feat: add Quorum (garage)`.
+- PR title: `feat: add Hunch (garage)`.
 
 ## 5. Register the app
 

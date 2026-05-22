@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-19. Targeting the Garage cycle ending **Friday 2026-05-22**.
 
-> **Superseded — 2026-05-20.** This file is the original brainstorm. The project landed on **Quorum** — a trust-gated crowd-staked Connect Four mini-app. Canonical source of truth is now `PRD.md` and `PROJECT.md`.
+> **Superseded — 2026-05-20.** This file is the original brainstorm. The project landed on **Hunch** — a trust-gated crowd-staked Connect Four mini-app. Canonical source of truth is now `PRD.md` and `PROJECT.md`.
 
 ## What we're optimizing for
 

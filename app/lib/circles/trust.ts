@@ -1,8 +1,8 @@
-// Trust verification — Quorum's Sybil firewall.
+// Trust verification — Hunch's Sybil firewall.
 //
 // An avatar may vote if it is "trust-verified". It qualifies in either of two
 // ways:
-//   1. The Quorum pool trusts it on-chain (Hub v2 `isTrusted`). This is the
+//   1. The Hunch pool trusts it on-chain (Hub v2 `isTrusted`). This is the
 //      authoritative voter registry — scripts/trust-voters.mjs adds the edges.
 //   2. At least TRUST_THRESHOLD other avatars trust it on the Circles graph.
 //
@@ -23,7 +23,7 @@ export const TRUST_THRESHOLD = 1;
 /** Circles indexer JSON-RPC endpoint — also serves Gnosis `eth_call`. */
 const CIRCLES_RPC = "https://rpc.aboutcircles.com/";
 
-/** The Quorum staking-pool Organisation avatar. */
+/** The Hunch staking-pool Organisation avatar. */
 const POOL_ADDRESS = process.env.NEXT_PUBLIC_POOL_ADDRESS;
 
 /** Read-only Gnosis client for on-chain trust lookups. */
@@ -36,7 +36,7 @@ export interface TrustStatus {
   address: string;
   /** Incoming community-trust edges, per the Circles indexer. */
   trustedBy: number;
-  /** Whether the Quorum pool has trusted this avatar on-chain. */
+  /** Whether the Hunch pool has trusted this avatar on-chain. */
   poolTrusted: boolean;
   /** Whether this is a registered Circles avatar at all. */
   registered: boolean;
@@ -50,7 +50,7 @@ interface ProfileViewResult {
   trustStats?: { trustsCount?: number; trustedByCount?: number };
 }
 
-/** True if the Quorum pool trusts `address` on the Circles Hub (on-chain). */
+/** True if the Hunch pool trusts `address` on the Circles Hub (on-chain). */
 async function poolTrusts(address: string): Promise<boolean> {
   if (!POOL_ADDRESS) return false;
   try {
@@ -98,7 +98,7 @@ async function getCommunityTrust(
 }
 
 /**
- * Look up an avatar's vote eligibility on Quorum.
+ * Look up an avatar's vote eligibility on Hunch.
  * Fails closed: an avatar that cannot be checked is treated as unverified.
  */
 export async function getTrustStatus(address: string): Promise<TrustStatus> {

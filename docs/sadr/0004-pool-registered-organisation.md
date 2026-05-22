@@ -7,10 +7,13 @@
 
 ## What
 
-Registered the pool EOA as a Circles v2 **Organisation avatar** named
-`"Quorum Pool"`, using `app/scripts/register-pool.mjs` — a single
-`registerOrganization(name, metadataDigest)` call on Hub v2 with a zero metadata
-digest (no profile).
+Registered the pool EOA as a Circles v2 **Organisation avatar**, using
+`app/scripts/register-pool.mjs` — a single `registerOrganization(name,
+metadataDigest)` call on Hub v2 with a zero metadata digest (no profile).
+
+Its on-chain `_name` is `"Quorum Pool"` — set at registration, before the
+project was renamed to Hunch. On-chain names are immutable, so it stays a
+harmless internal legacy artifact, never shown to users.
 
 ## Evidence
 

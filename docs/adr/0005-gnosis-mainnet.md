@@ -10,7 +10,7 @@ the indexer, and real avatars all live on Gnosis mainnet.
 
 ## Decision
 
-Quorum targets **Gnosis Chain mainnet** for all environments, including the demo.
+Hunch targets **Gnosis Chain mainnet** for all environments, including the demo.
 There is no separate test deployment of the Circles integration.
 
 ## Consequences

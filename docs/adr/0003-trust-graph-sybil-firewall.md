@@ -6,7 +6,7 @@
 ## Context
 
 One-person-one-vote (ADR-0001) is meaningless without Sybil resistance: nothing
-should stop one actor spinning up many wallets to swing a move. Quorum should
+should stop one actor spinning up many wallets to swing a move. Hunch should
 not build its own identity system.
 
 ## Decision

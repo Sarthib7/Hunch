@@ -1,4 +1,4 @@
-// Generated from the Quorum Supabase schema (mcp generate_typescript_types).
+// Generated from the Hunch Supabase schema (mcp generate_typescript_types).
 // Do not edit by hand — regenerate after schema changes.
 
 export type Json =

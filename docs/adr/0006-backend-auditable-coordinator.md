@@ -5,7 +5,7 @@
 
 ## Context
 
-Quorum should be as decentralised as is honest, without overbuilding for v1. A
+Hunch should be as decentralised as is honest, without overbuilding for v1. A
 fully on-chain settlement contract is more than a 2-day build needs.
 
 ## Decision

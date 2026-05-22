@@ -1,4 +1,4 @@
-# Quorum — Product Requirements Document
+# Hunch — Product Requirements Document
 
 > Working name — naming is open, see `PROJECT.md`.
 
@@ -6,11 +6,11 @@
 
 ## 1. Summary
 
-Quorum is an embedded Circles mini-app: a **crowd collectively plays one game, one move at a time**. Every move is a **trust-gated, one-person-one-vote, staked decision** — only avatars verified by the Circles trust graph may vote, each verified voter gets one equal vote, and casting a vote requires staking CRC on-chain. v1 ships the crowd game on **Connect Four** (crowd vs a deterministic weak bot). The game sits behind a pluggable interface so heavier games (chess) swap in later without touching the crowd layer.
+Hunch is an embedded Circles mini-app: a **crowd collectively plays one game, one move at a time**. Every move is a **trust-gated, one-person-one-vote, staked decision** — only avatars verified by the Circles trust graph may vote, each verified voter gets one equal vote, and casting a vote requires staking CRC on-chain. v1 ships the crowd game on **Connect Four** (crowd vs a deterministic weak bot). The game sits behind a pluggable interface so heavier games (chess) swap in later without touching the crowd layer.
 
 ## 2. Why Circles (the load-bearing test)
 
-A crowd decision is worthless without Sybil resistance — without it, one person with ten wallets owns every vote. Circles is the only chain whose protocol maintains a **Sybil-resistant registry of unique humans**: the trust graph. Quorum uses that graph as its voter registry. Remove Circles and the game collapses into "biggest Sybil farm wins." The trust graph is not decoration — it is what makes a crowd a crowd.
+A crowd decision is worthless without Sybil resistance — without it, one person with ten wallets owns every vote. Circles is the only chain whose protocol maintains a **Sybil-resistant registry of unique humans**: the trust graph. Hunch uses that graph as its voter registry. Remove Circles and the game collapses into "biggest Sybil farm wins." The trust graph is not decoration — it is what makes a crowd a crowd.
 
 - **Trust graph** — voter registry / Sybil firewall (load-bearing).
 - **Personal CRC** — the stake (skin in the game + the prize pool).
@@ -104,7 +104,7 @@ Circles transactions are plain CRC v2 transfers — they don't touch the Garage 
 
 ## 10. Decentralization
 
-Quorum is decentralized where it matters; the centralized surface is a thin, auditable coordinator.
+Hunch is decentralized where it matters; the centralized surface is a thin, auditable coordinator.
 
 **On-chain by construction (Gnosis Chain):** identity (EIP-1271 against the Safe), trust (the Circles graph), stakes (CRC transfers), and **votes** — each vote *is* an on-chain CRC stake transfer with the chosen move in its metadata. Every vote is a signed, public, immutable event.
 

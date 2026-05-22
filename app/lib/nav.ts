@@ -3,4 +3,4 @@ export type NavItem = {
   label: string;
 };
 
-export const NAV: NavItem[] = [{ href: "/", label: "Quorum" }];
+export const NAV: NavItem[] = [{ href: "/", label: "Hunch" }];

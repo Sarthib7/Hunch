@@ -36,14 +36,14 @@ const ATTO = 10n ** 18n;
 
 /** A vote's on-chain reference, carried in the CRC transfer metadata. */
 export function voteReference(roundId: string, move: number): string {
-  return `quorum.${roundId}.${move}`;
+  return `hunch.${roundId}.${move}`;
 }
 
 /** Parse a vote reference back to { roundId, move }, or null if malformed. */
 export function parseVoteReference(
   reference: string,
 ): { roundId: string; move: number } | null {
-  const match = /^quorum\.([0-9a-fA-F-]+)\.([0-6])$/.exec(reference);
+  const match = /^hunch\.([0-9a-fA-F-]+)\.([0-6])$/.exec(reference);
   if (!match) return null;
   return { roundId: match[1], move: Number(match[2]) };
 }
