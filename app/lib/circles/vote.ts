@@ -5,19 +5,32 @@ import { ANTE_CRC } from "@/lib/round/config";
 
 import { HUB_V2_ADDRESS, safeTransferFromAbi, toTokenId } from "./hub";
 
-// ASSUMPTIONS:
-//  1. [VERIFIED 2026-05-21] A personal-CRC ERC-1155 token id == the avatar
-//     address as a uint256 — confirmed against a live CrcV2_TransferSingle event.
-//  2. [UNVERIFIED — needs one real on-chain stake] A direct safeTransferFrom of
-//     personal CRC (voter -> pool) succeeds because the pool Organisation avatar
-//     trusts the voter (see scripts/trust-voters.mjs and the PRD pool design).
-//     If a voter -> pool transfer needs pathfinder routing, switch to
-//     TransferBuilder.constructAdvancedTransfer from @aboutcircles/sdk-transfers.
-//  3. [VERIFIED 2026-05-21] encodeCrcV2TransferData metadata placed in the
+// A vote is a flat-ante CRC stake transferred from the voter into the pool,
+// carrying the round + column in the transfer metadata.
+//
+// Which token is staked: a fixed demo group's CRC (STAKE_GROUP). Circles users
+// hold their balance as group CRC — personal CRC is minted slowly and is mostly
+// wrapped/converted away — and the Hub only lets the pool receive a token whose
+// issuer it trusts. So the pool trusts STAKE_GROUP (via scripts/trust-voters.mjs)
+// and the stake transfers that group's ERC-1155 token. v1 uses one fixed group;
+// per-voter token detection is roadmap.
+//
+// NOTES:
+//  1. A Circles ERC-1155 token id == the avatar/group address as a uint256.
+//  2. [VERIFIED 2026-05-21] encodeCrcV2TransferData metadata placed in the
 //     ERC-1155 `_data` is surfaced by the indexer as a CrcV2_TransferData event.
+//     lib/round/votes.ts ingests the stake token-agnostically (any token into
+//     the pool with a valid vote reference counts).
 
 /** Pool Organisation avatar — receives stakes and pays winners out. */
 const POOL_ADDRESS = process.env.NEXT_PUBLIC_POOL_ADDRESS;
+
+/**
+ * v1 demo stake token: the Circles group whose CRC voters stake. The pool
+ * trusts this group on the Hub so it can receive the token; voters must hold
+ * its CRC. Fixed for v1 — see the note above.
+ */
+const STAKE_GROUP = "0xC19BC204eb1c1D5B3FE500E5E5dfaBaB625F286c";
 
 const ATTO = 10n ** 18n;
 
@@ -42,9 +55,10 @@ export interface HostTransaction {
 }
 
 /**
- * Build the host transaction for a stake-vote: a flat-ante transfer of the
- * voter's personal CRC to the pool, carrying the round + column in metadata.
- * Pass the result to `sendTransactions([tx])` from @aboutcircles/miniapp-sdk.
+ * Build the host transaction for a stake-vote: a flat-ante transfer of
+ * STAKE_GROUP's CRC from the voter to the pool, carrying the round + column in
+ * metadata. Pass the result to `sendTransactions([tx])` from
+ * @aboutcircles/miniapp-sdk.
  */
 export function buildStakeVoteTx(
   voter: string,
@@ -62,7 +76,7 @@ export function buildStakeVoteTx(
     args: [
       voter as `0x${string}`,
       POOL_ADDRESS as `0x${string}`,
-      toTokenId(voter),
+      toTokenId(STAKE_GROUP),
       BigInt(ANTE_CRC) * ATTO,
       encodeCrcV2TransferData([voteReference(roundId, move)], 0x0001),
     ],
