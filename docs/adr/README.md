@@ -23,6 +23,7 @@ Each record carries: **Status · Date · Context · Decision · Consequences** (
 | [0004](0004-pool-as-organisation-avatar.md) | Staking pool as a Circles Organisation avatar | Accepted |
 | [0005](0005-gnosis-mainnet.md) | Gnosis Chain mainnet, no testnet | Accepted |
 | [0006](0006-backend-auditable-coordinator.md) | Backend as an auditable coordinator | Accepted |
+| [0007](0007-stake-in-group-crc.md) | Stake the vote in a group's CRC, not personal CRC | Accepted |
 
 Source of record for these decisions: `PRD.md` (v1.0) and `PROJECT.md` (Locked
 decisions + Decisions log). ADRs distil them into one-decision-per-file form.

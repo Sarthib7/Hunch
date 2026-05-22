@@ -1,61 +1,52 @@
-# Hunch — what's left to do
+# Hunch — status & what's left
 
-**Status (2026-05-22):** v1 build complete — builds + lints clean. Supabase fully
-wired and verified; vote ingestion verified against the live indexer and fixed
-(§3). Pool funded + registered on-chain and voter #1 trusted — audit trail in
-`docs/sadr/`. **Not deployed. Not tested end-to-end.** What's left for a Garage
-submission is below.
+**Status (2026-05-22):** Live. Deployed to Vercel, and the full trust-gated,
+staked-vote mechanic is **verified end-to-end on-chain** — a vote went
+verified → staked → settled → cron-ingested → tallied. Renamed from the working
+name "Quorum" to **Hunch**. A draft Garage entry is in. Cycle closes
+**Sun 2026-05-24, 23:59 CET**.
 
-**Who does what:** §1–2 are your accounts/setup; §3 you run and I fix.
+## 1. Done
 
-## 1. Blockers (you)
+- ✅ v1 built — Connect Four engine + deterministic bot, round machine, board +
+  live-tally UI; builds + lints clean.
+- ✅ Supabase wired and verified.
+- ✅ Pool funded (~0.1 xDAI) and registered as a Circles Organisation avatar.
+- ✅ Trust gate fixed — verifies a voter via the pool's on-chain `isTrusted`,
+  not just the indexer count (which omits Organisation trust). `docs/adr/0003`.
+- ✅ Stake-vote fixed — stakes a demo group's CRC, since voters hold group CRC,
+  not personal CRC. `docs/adr/0007`.
+- ✅ Vote verified end-to-end on-chain. `docs/sadr/0006`.
+- ✅ Deployed — `https://hunch-teleshops-projects.vercel.app`.
+- ✅ Rebranded Quorum → Hunch (Vercel project, GitHub repo, code, docs).
 
-1. ~~Real service-role key~~ — **done.** Both Supabase keys verified; the
-   service-role key authenticates and bypasses RLS, so the backend can write.
-2. ~~Register the pool.~~ — **done (2026-05-22).** Pool funded with ~0.1 xDAI
-   and registered as the "Hunch Pool" Organisation avatar
-   (`0xFf515429c88cc545B8D6A7965171D87FaCA3904A`). Evidence:
-   `docs/sadr/0003-pool-funded-for-gas.md`,
-   `docs/sadr/0004-pool-registered-organisation.md`.
-3. **Demo crowd** — ~5 trust-verified Circles avatars + 1 zero-trust. **1 of ~6
-   done** — voter #1 trusted (`docs/sadr/0005-voter-1-verified-trusted.md`).
-   Collect the rest; the pool trusts each via `scripts/trust-voters.mjs` (one
-   action — it both lets stakes settle and satisfies the Sybil gate).
+## 2. Left before Sunday
 
-_Restart the dev server after any `.env.local` change — Next reads it only at startup._
+1. **Re-submit the Garage form as Hunch** — §01 name/slug → `Hunch` / `hunch`;
+   §03 repo → `github.com/Sarthib7/Hunch`, live link → the `hunch-` URL.
+2. **Cron pinger** — a cron-job.org job hitting `/api/cron` every minute, so the
+   game self-advances (it is pinged manually for now). `SUBMISSION.md` §3.
+3. **Demo video** — judges can't self-serve a vote (curated voter set), so a
+   ~90-second recording of the vote flow is the proof.
+4. **Demo crowd** — 1 of ~6 voters trusted; recruit the rest.
 
-## 2. Deploy — task 9 (you) — step-by-step in `SUBMISSION.md`
+## 3. Optional polish
 
-- [ ] Deploy `app/` to Vercel; set every env var there.
-- [ ] Schedule a pinger on `/api/cron` (~every minute — the game only advances when pinged).
-- [ ] PR the manifest entry to `aboutcircles/CirclesMiniapps`.
-- [ ] Register the app at `garage.aboutcircles.com/register`.
+- Rounds are 8h (`HUNCH_ROUND_MS` unset) — set `120000` for 2-min demo rounds
+  (pair with the 1-minute cron).
+- Set a `CRON_SECRET` on Vercel — `/api/cron` is currently unprotected.
+- Marketplace manifest PR to `aboutcircles/CirclesMiniapps` — prepared on a fork
+  branch, not opened.
+- Retire the stale `quorum-teleshops-projects.vercel.app` URL (pre-rebrand build).
 
-## 3. Test + fix (you run it, I fix) — the "it builds → it works" gap
+## 4. Known v1 limitations (acceptable)
 
-**Vote ingestion (`lib/round/votes.ts`) — verified + fixed (2026-05-21).** Probed
-against the live Circles indexer; two bugs that would have failed *every* vote
-are now fixed: the metadata `data` field comes back `\x`-encoded (normalised to
-`0x` before decoding), and the stake amount lives on a separate
-`CrcV2_TransferSingle` event (now correlated by transaction). Token-id derivation
-and the encode/decode round-trip are confirmed correct.
-
-- [ ] Run the end-to-end test in the Circles playground (`SUBMISSION.md` §6):
-      cron creates a game → a verified avatar votes → the vote lands in the tally
-      → the round resolves → the bot replies.
-- [ ] **One assumption still needs a live run:** that a direct `safeTransferFrom`
-      voter→pool settles (`vote.ts` assumption 2 — the pool must trust the voter).
-      If a vote sends but never registers, send me the `/api/cron` output.
-- [ ] **On me:** fix whatever the first real run surfaces.
-
-## 4. Known minor gaps (acceptable for v1)
-
-- Dev hydration warning — the `<html>` font class differs server vs client (Geist
-  CSS-module). Cosmetic; confirm it doesn't appear in the production build.
-- Win payout is **manual** — the UI shows the pool; the operator sends the CRC.
-- The pool is an EOA-controlled Organisation avatar — fine for the v1 demo;
-  migrate it to a Safe before it holds anything beyond hackathon stakes.
-- Name finalised: **Hunch** — renamed from "Quorum" on 2026-05-22.
+- Win payout is **manual** — the operator sends the CRC.
+- The pool is an EOA-controlled Organisation avatar — migrate to a Safe before
+  it holds real value.
+- Voting is a **curated voter set** — the pool must trust each voter and they
+  must hold the demo stake-group's CRC; per-voter token detection is roadmap.
+- The pool's on-chain name is `"Quorum Pool"` — set before the rename, immutable.
 
 ## 5. Roadmap — explicitly NOT v1 (`PRD.md` §11)
 
@@ -63,5 +54,4 @@ and the encode/decode round-trip are confirmed correct.
 - W3 — real engine + brilliancy analysis · chess as a swap-in game
 - W4 — crowd-vs-crowd (circle-vs-circle)
 - W5 — Sybil hardening · seasons & leaderboards
-- A custom **on-chain settlement contract** — the deeper-decentralization step
-  beyond today's auditable backend coordinator. (There is no contract in v1.)
+- A custom **on-chain settlement contract** — beyond today's auditable backend.

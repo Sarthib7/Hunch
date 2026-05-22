@@ -27,6 +27,7 @@ Notes**. Status is one of `Verified` · `Pending` · `Failed`.
 | [0003](0003-pool-funded-for-gas.md) | Pool funded with xDAI for gas | 2026-05-22 | Verified |
 | [0004](0004-pool-registered-organisation.md) | Pool registered as an Organisation avatar | 2026-05-22 | Verified |
 | [0005](0005-voter-1-verified-trusted.md) | Voter #1 verified and trusted by the pool | 2026-05-22 | Verified |
+| [0006](0006-deployed-and-verified.md) | Deployed to Vercel; vote verified end-to-end | 2026-05-22 | Verified |
 
 ## Key on-chain addresses
 
@@ -42,19 +43,22 @@ Notes**. Status is one of `Verified` · `Pending` · `Failed`.
 |--------|-----|-------------|
 | Pool registration | [`0x8943…8955`](https://gnosisscan.io/tx/0x8943187b8362efdebf5300193dbaa706d704eb25f0234989e12880bafceb8955) | 0.000000000008379973 |
 | Trust voter #1 | [`0xb89b…4f62`](https://gnosisscan.io/tx/0xb89be33c78e13a913d758737e39cec3a2db3a9dfa1d461d931e5f127b4314f62) | 0.000000000006343392 |
-| **Total spent** | | **~0.000000000014723365** |
-| **Pool balance (after)** | | **0.099999997884751635** |
+| Trust stake group | [`0xc212…e7eb`](https://gnosisscan.io/tx/0xc2127914103f29476f50ce38e5c7a1fc45435dd4f97c0b43f97fd30d4da7e7eb) | ≈ 0.000000000006 (floor gas) |
+| **Total spent** | | **≈ 0.00000000002** |
+| **Pool balance** | | **≈ 0.0999999979 xDAI** |
 
-Gnosis gas is at floor levels — both writes together cost about 1.5e-11 xDAI.
+All writes are floor-gas — the pool's ~0.1 xDAI is effectively untouched. The
+voters' 1-CRC stakes are CRC (the stake group's token), not xDAI, and sit in the
+pool separately.
 
 ## Open questions
 
-1. **Sybil-gate strength** → ADR-0003. The pool must trust every voter for stakes
-   to settle, and that same edge satisfies the `trustedByCount ≥ 1` gate. Verify
-   against `app/lib/circles/trust.ts`; decide whether to require a non-pool edge.
-2. **Vote settlement** → TODO §3. Unverified on a live run: that a direct
-   `safeTransferFrom` voter → pool settles once the pool trusts the voter.
-3. **Zero-trust control.** If the pool does not trust the control avatar, its
-   stake transfer may simply revert rather than landing and being gate-rejected.
-   Confirm how the negative test actually manifests.
-4. **Payout.** v1 win-payout is manual — no automated split yet (ADR-0001).
+1. **Sybil-gate strength** → ADR-0003. Confirmed live: the indexer's
+   `trustedByCount` does not count Organisation trust, so the gate now also
+   checks the pool's on-chain `isTrusted` — which makes it, in practice, the
+   operator's allowlist for v1. Open: whether to add a community-trust
+   requirement beyond the pool's own edge.
+2. **Zero-trust control.** If the pool does not trust the control avatar, its
+   stake transfer simply reverts (it cannot hold the stake group's CRC) rather
+   than landing and being gate-rejected. Confirm how the negative test manifests.
+3. **Payout.** v1 win-payout is manual — no automated split yet (ADR-0001).

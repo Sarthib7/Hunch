@@ -4,8 +4,8 @@
 
 **One-liner:** A crowd collectively plays one game, one move at a time — every move a trust-gated, one-person-one-vote, staked decision.
 
-**Status:** v1 build complete — deploy pending (see `SUBMISSION.md`)
-**Target:** Circles Garage cycle ending **Fri 2026-05-22** (v1)
+**Status:** Live — deployed to Vercel; the full trust-gated staked-vote mechanic is verified end-to-end on-chain.
+**Target:** Circles Garage cycle — submissions close **Sun 2026-05-24, 23:59 CET** (v1)
 **Strategy:** ONE mini-app, new features every cycle — not a new app per cycle.
 
 ## Locked decisions
@@ -44,9 +44,9 @@ Conclave, Trustfall, Crowd Control, The Many.
 
 ## Open items
 
-Full remaining-work checklist: **`TODO.md`**. In short — three blockers (real
-service-role key, pool address, demo crowd), the Vercel deploy + marketplace PR,
-and the end-to-end playground test. Deploy how-to: `SUBMISSION.md`.
+Full status + remaining work: **`TODO.md`**. In short — deployed and verified
+end-to-end; what's left before Sunday is re-submitting the Garage form as Hunch,
+a cron pinger, a demo video, and more of the demo crowd.
 
 ## Links
 
@@ -64,3 +64,4 @@ and the end-to-end playground test. Deploy how-to: `SUBMISSION.md`.
 - **2026-05-20 (build)** — App scaffolded in `app/` (Next 16 boilerplate). Done + build-verified: Connect Four engine/bot (`lib/games/`), trust-verification query (`lib/circles/trust.ts`), vote-mode board (`components/game/Board.tsx`), `/game` route. EIP-1271 server sign-in descoped (host address + on-chain votes suffice). Supabase project for Hunch = `pqeqkksdscynmxjlztzx`; `.mcp.json` repointed to it. **Next:** restart Claude Code to load the MCP → authenticate Supabase → schema → round machine → voting → payout.
 - **2026-05-20 (build complete)** — tasks 1–8 built and build-verified; the game is the home route (`/`), boilerplate demo pages removed. Task 9 build parts done — `SUBMISSION.md` is the deploy runbook. Remaining: the user deploys to Vercel + opens the marketplace PR. Untested end-to-end — see `SUBMISSION.md` §6 and the two flagged spots (`lib/circles/vote.ts`, `lib/round/votes.ts`).
 - **2026-05-22 (setup + audit)** — Pool funded (~0.1 xDAI) and registered on-chain as the "Hunch Pool" Organisation avatar; voter #1 verified and trusted. Architecture decisions extracted into `docs/adr/`; on-chain setup actions recorded in `docs/sadr/`. Open question raised on the Sybil gate (ADR-0003): the pool's own trust edge satisfies the `trustedByCount ≥ 1` check, so as wired it behaves as an operator allowlist — verify against `app/lib/circles/trust.ts`.
+- **2026-05-22 (deploy + ship)** — Deployed `app/` to Vercel. Fixed two mechanism bugs found on the live network: (1) the Sybil gate ignored the pool's trust — the indexer's `trustedByCount` omits Organisation-avatar trust — so the gate now also checks on-chain `isTrusted` (ADR-0003); (2) the stake-vote sent the voter's *personal* CRC, which voters don't hold — it now stakes a fixed demo group's CRC (ADR-0007). With both fixed, a vote was verified **end-to-end on-chain** (verified → staked → settled → cron-ingested → tallied; `docs/sadr/0006`). Renamed the project **Quorum → Hunch** — the working name was hard to pronounce — across the Vercel project, GitHub repo, code, and docs. A draft Garage entry is submitted; re-submit as Hunch pending.
