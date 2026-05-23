@@ -63,6 +63,22 @@ See [reference/sdk.md](reference/sdk.md) for the full breakdown of each call, er
 
 ## The data layer — `@aboutcircles/sdk`
 
+The SDK is shipped as one umbrella package plus a set of modular sub-packages you can import directly when you need lower-level access:
+
+| Package | What's in it |
+|---|---|
+| `@aboutcircles/sdk` | High-level `Sdk` + avatar classes (`HumanAvatar`, `OrganisationAvatar`, `BaseGroupAvatar`) and namespaced helpers (`sdk.data`, `sdk.tokens`, `sdk.groups`, `sdk.profiles`, `sdk.register`) |
+| `@aboutcircles/sdk-core` | `Core` + `circlesConfig[100]` (Hub v1/v2, NameRegistry, Migration, BaseMintPolicy, StandardTreasury, LiftERC20 addresses) |
+| `@aboutcircles/sdk-rpc` | `CirclesRpc` — typed client for `circles_*` JSON-RPC methods and pathfinder |
+| `@aboutcircles/sdk-runner` | `SafeContractRunner` (server) / `SafeBrowserRunner` (front-end Safe Apps); both satisfy the `ContractRunner` interface for Safe-backed signing |
+| `@aboutcircles/sdk-transfers` | `TransferBuilder.constructAdvancedTransfer(from, to, amount, opts)` — orchestrates pathfinding + unwrap/approve/`operateFlowMatrix` payloads into one ordered tx list |
+| `@aboutcircles/sdk-pathfinder` | `createFlowMatrix`, `packCoordinates`, `getTokenInfoMapFromPath`, `shrinkPathValues`, etc. — pure helpers for hand-building flow matrices |
+| `@aboutcircles/sdk-profiles` | `Profiles.create(profile)` / `.get(cid)` — direct pinning client for the Circles profile service |
+| `@aboutcircles/sdk-types` | Shared types: `ContractRunner`, `TransactionRequest`, `Profile`, `GroupProfile`, avatar models |
+| `@aboutcircles/sdk-utils` | `encodeCrcV2TransferData`, `decodeCrcV2TransferData`, `cidV0ToHex`, demurrage helpers |
+
+For mini-apps the umbrella `@aboutcircles/sdk` is enough; reach for the sub-packages when you need a Safe runner, analytics RPC views, or custom flow-matrix construction.
+
 ```ts
 import { Sdk } from '@aboutcircles/sdk';
 const sdk = new Sdk(); // defaults to Gnosis Chain mainnet — no contractRunner needed for reads
@@ -87,6 +103,47 @@ await avatar.groupToken.mint(group, amount);
 For write flows in a mini-app: **you don't need a `contractRunner`**. Build the calldata with viem (or hand-encoded) and pass it to `sendTransactions()` — the host's Safe is the signer. The avatar's high-level write methods (`avatar.trust.add`, `avatar.transfer.direct`, …) are for non-mini-app contexts where you control a signer.
 
 Full method-by-method reference: [reference/sdk.md](reference/sdk.md).
+
+## Rich indexed reads — `circles_query`
+
+For anything more complex than "watch the event stream", use the `circles_query` JSON-RPC method with the `V_CrcV2` (aggregated views) or `CrcV2` (raw events) namespaces. It accepts a structured query: `{ Namespace, Table, Columns, Filter, Order, Limit }`. Tables worth knowing:
+
+| Table (V_CrcV2) | What it gives you |
+|---|---|
+| `Avatars` | Recent human / group / org registrations with `cidV0Digest` |
+| `TrustRelations` | Directed trust edges with `expiryTime`; filter by `truster` or `trustee` |
+| `BalancesByAccountAndToken` | Per-token balance breakdown for an account, including demurraged totals |
+| `Transfers` | Indexed CRC transfers, filterable by `from`/`to`/`type` — cleaner than walking `circles_events` for analytics |
+| `TotalSupply` | Per-token total supply (use with the demurrage helpers from `sdk-utils`) |
+| `Groups` | Group registry with `memberCount`, `mintPolicy`, `treasury`, ERC-20 wrapper addresses |
+| `GroupMemberships`, `GroupTokenHoldersBalance`, `GroupVaultBalancesByToken`, `GroupCollateralByToken` | Membership + collateral views for any group |
+| `GroupMembersCount_{1h,1d}`, `GroupWrapUnWrap_{1h,1d}`, `GroupMintRedeem_{1h,1d}`, `AffiliateMembersCount_{1h,1d}`, `Erc20BalancerVaultBalance_{1h,1d}` | Pre-aggregated time-series for dashboards |
+
+Use the raw `CrcV2` namespace (e.g. `CrcV2.CirclesBackingDeployed`) when you need un-aggregated event rows. `circles_events` is still right for *live ingestion* (it scopes by address + block range and is what a sequencer / cron should poll); `circles_query` shines for *backfill, history views, and analytics*.
+
+## Wrapping CRC into ERC-20 and back
+
+CRC is an ERC-1155, but most DeFi tools expect an ERC-20. Two wrapper flavours, switchable per-avatar:
+
+* **Demurraged ERC-20** (`avatar.wrap.asDemurraged(avatar.address, atto)`) — keeps the 7%/yr decay. Use when external protocols should respect Circles economics.
+* **Inflationary / static ERC-20** (`avatar.wrap.asInflationary(avatar.address, atto)`) — balance is fixed in ERC-20 terms. Use for AMM LP, lending collateral, bridges where decay breaks integrations.
+
+Unwrap back via `avatar.wrap.unwrapDemurraged(wrapperAddr, atto)` / `unwrapInflationary(...)`. Look up an avatar's wrapper address with `sdk.core.liftERC20.erc20Circles(CirclesType.Demurrage | CirclesType.Inflation, avatar.address)` from `@aboutcircles/sdk-core`.
+
+## Multi-hop payouts — `TransferBuilder`
+
+The high-level avatar `transfer.advanced(...)` and the standalone `TransferBuilder.constructAdvancedTransfer(from, to, amount, opts)` both wrap the same flow: pathfinder → flow-matrix → ordered `[unwrap?, approve?, operateFlowMatrix]` tx list, returned without sending. Pass `useWrappedBalances: true` if the sender has wrapped CRC, `simulatedBalances` for what-if previews, and `maxTransfers` to cap hop count. Hand the result to `sendTransactions()` (mini-app) or your runner (server). This is the canonical implementation path for any future "automated payout to N voters" feature — don't roll your own flow matrix unless you need exotic routing.
+
+## Profiles — pin avatar metadata to IPFS
+
+Every avatar's on-chain `cidV0Digest` points at a JSON blob on IPFS. The blob shape is `Profile` (`name` + optional `description`, `imageUrl`, `previewImageUrl`, `location`, `geoLocation`, `extensions`). Group profiles add a required `symbol`. Pin via either:
+
+```ts
+const cid = await sdk.profiles.create(profile);              // direct pinning client
+await avatar.profile.update(profile);                        // pin + on-chain updateMetadataDigest
+```
+
+`previewImageUrl` is strict: PNG/JPEG/GIF, exactly 256×256, ≤150KB, base64 data URL. Validate client-side before submitting or the service rejects the upload. Useful for setting a pool/Organisation avatar's name + image so it shows properly in the Circles host instead of as a generic Organisation tile.
 
 ## The four primitives
 
@@ -176,8 +233,13 @@ Detailed flow with worked example: [reference/standalone-qr.md](reference/standa
 - [Intermediate embedded guide](https://docs.aboutcircles.com/miniapps/embedded-mini-apps/intermediate-embedded-mini-app-guide.md) — multi-step flows, intent-matching, EIP-712 receipts
 - [Standalone mini-apps](https://docs.aboutcircles.com/miniapps/standalone-mini-apps.md) — QR/deep-link patterns
 - [Contributing mini-apps](https://docs.aboutcircles.com/miniapps/contribute-mini-apps.md) — manifest schema, review criteria
-- [SDK interface](https://docs.aboutcircles.com/circles-sdk-reference/circles-sdk-interface.md) and [SDK methods](https://docs.aboutcircles.com/circles-sdk-reference/sdk-methods.md)
-- [Pathfinder](https://docs.aboutcircles.com/circles-sdk/pathfinder.md), [group currencies](https://docs.aboutcircles.com/overview/how-it-works/group-currencies.md), [rule of trust](https://docs.aboutcircles.com/user-guides/circles-features/circles-transfer-and-rule-of-trust.md)
+- [Quickstart guide for the SDK](https://docs.aboutcircles.com/circles-sdk/getting-started-with-the-sdk.md) — install + `circlesConfig[100]` + browser `ContractRunner` end-to-end
+- [SDK overview](https://docs.aboutcircles.com/circles-sdk/circles-sdk-overview.md) and the [sub-package list](https://docs.aboutcircles.com/circles-sdk/circles-sdk-overview.md#dependency-packages)
+- [Pathfinder](https://docs.aboutcircles.com/circles-sdk/pathfinder.md), [group currencies](https://docs.aboutcircles.com/overview/how-it-works/group-currencies.md), [rule of trust](https://docs.aboutcircles.com/user-guides/circles-features/circles-transfer-and-rule-of-trust.md), [wrapping](https://docs.aboutcircles.com/circles-sdk/wrapping-and-unwrapping.md), [profiles](https://docs.aboutcircles.com/circles-sdk/circles-profiles.md)
+- [JSON-RPC API reference](https://docs.aboutcircles.com/api-reference/circles-api.md) — every `circles_*` method with request/response schemas, including the `circles_query` template library
+- [Embedded mini-apps practical guide](https://docs.aboutcircles.com/miniapps/embedded-mini-apps.md) — wallet lifecycle FSM, tx-formatting adapter, request-ID race control, signing patterns
+- [Agentic setup for Circles](https://docs.aboutcircles.com/miniapps/agentic-setup-for-circles.md) — Context7 MCP wiring (libraries `aboutcircles/sdk` and `aboutcircles/circles-docs`) so editor agents pull fresh API surfaces
+- [CirclesTools dashboard](https://aboutcircles.github.io/CirclesTools/) — Group Checker, Trust Path Visualizer, Token Distribution Checker; useful for ops/debugging
 - [Full corpus](https://docs.aboutcircles.com/llms-full.txt) — search this when something specific isn't here
 
 **Programs**
