@@ -120,6 +120,16 @@ export async function ensureActiveGame(): Promise<GameRow> {
 export async function resolveRound(round: RoundRow): Promise<void> {
   const db = supabaseAdmin();
 
+  // Re-fetch the round to guard against double-resolve races between the cron
+  // sweep and /api/vote. Not a perfect lock (TOCTOU), but it closes the
+  // window from ~minutes to ~milliseconds — sufficient for the demo crowd.
+  const { data: currentRound } = await db
+    .from("rounds")
+    .select("status")
+    .eq("id", round.id)
+    .maybeSingle();
+  if (!currentRound || currentRound.status !== "open") return;
+
   const { data: game, error: gameErr } = await db
     .from("games")
     .select("*")

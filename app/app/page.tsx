@@ -87,8 +87,22 @@ function LiveGameView({
     try {
       const tx = buildStakeVoteTx(address, round.id, uci);
       const { sendTransactions } = await import("@aboutcircles/miniapp-sdk");
-      await sendTransactions([tx]);
+      const hashes = await sendTransactions([tx]);
       setVote({ kind: "submitted", uci });
+
+      // Fire the instant-ingestion endpoint — server waits for the tx, records
+      // the vote, and resolves the round so the bot plays. Realtime updates
+      // the UI when done. We don't await: the user sees "submitted" right away
+      // and the new position arrives via the Realtime subscription. Errors
+      // fall through to the cron safety net, so we don't surface them.
+      const txHash = hashes?.[0];
+      if (txHash) {
+        void fetch("/api/vote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ txHash, roundId: round.id }),
+        }).catch(() => undefined);
+      }
     } catch (err) {
       setVote({
         kind: "error",
