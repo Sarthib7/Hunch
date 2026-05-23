@@ -219,7 +219,9 @@ async function recordVote(
   }
 
   // Record the vote. unique(round_id, voter) enforces one-person-one-vote;
-  // unique(tx_hash) is the idempotency backstop.
+  // unique(tx_hash) is the idempotency backstop. The votes_pool_crc trigger
+  // on this table atomically bumps games.pool_crc — no race-prone
+  // read-modify-write here.
   const { error: insertErr } = await db.from("votes").insert({
     round_id: vote.roundId,
     voter: stake.from,
@@ -228,19 +230,6 @@ async function recordVote(
     tx_hash: stake.txHash,
   });
   if (insertErr) return false; // duplicate vote or a race — skip
-
-  // Add the stake to the game's pool.
-  const { data: game } = await db
-    .from("games")
-    .select("pool_crc")
-    .eq("id", round.game_id)
-    .single();
-  if (game) {
-    await db
-      .from("games")
-      .update({ pool_crc: game.pool_crc + ANTE_CRC })
-      .eq("id", round.game_id);
-  }
 
   return true;
 }

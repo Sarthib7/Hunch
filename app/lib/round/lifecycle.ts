@@ -114,21 +114,13 @@ export async function ensureActiveGame(): Promise<GameRow> {
  * Resolve one open round: tally its votes, play the crowd's move, let the bot
  * reply, then open the next round or end the game.
  *
- * Assumes serial invocation (the cron). Double-resolution protection is a
- * hardening item — see PRD §4 roadmap.
+ * Returns true iff this call actually performed the resolution. Concurrent
+ * resolveRound calls (cron sweep vs /api/vote) race on the atomic UPDATE in
+ * step 4: Postgres serialises the UPDATE on the round row, so only one call
+ * sees a non-empty result; the loser bails.
  */
-export async function resolveRound(round: RoundRow): Promise<void> {
+export async function resolveRound(round: RoundRow): Promise<boolean> {
   const db = supabaseAdmin();
-
-  // Re-fetch the round to guard against double-resolve races between the cron
-  // sweep and /api/vote. Not a perfect lock (TOCTOU), but it closes the
-  // window from ~minutes to ~milliseconds — sufficient for the demo crowd.
-  const { data: currentRound } = await db
-    .from("rounds")
-    .select("status")
-    .eq("id", round.id)
-    .maybeSingle();
-  if (!currentRound || currentRound.status !== "open") return;
 
   const { data: game, error: gameErr } = await db
     .from("games")
@@ -138,7 +130,7 @@ export async function resolveRound(round: RoundRow): Promise<void> {
   if (gameErr || !game) {
     throw new Error(`resolveRound: game not found (${gameErr?.message ?? ""})`);
   }
-  if (game.status !== "active") return; // already ended
+  if (game.status !== "active") return false; // already ended
 
   const { data: votes, error: voteErr } = await db
     .from("votes")
@@ -149,11 +141,9 @@ export async function resolveRound(round: RoundRow): Promise<void> {
   }
 
   // No-fallback policy: the bot waits for the crowd. If no one voted by the
-  // deadline, leave the round open and let votes trickle in — resolution will
-  // happen on the next cron tick after at least one vote lands. Chess has too
-  // many legal moves for an "alphabetically first" or "random" fallback to
-  // produce sensible play; a vote-driven cadence is the right model.
-  if (!votes || votes.length === 0) return;
+  // deadline, leave the round open and let votes trickle in — resolution
+  // will happen on the next cron tick after at least one vote lands.
+  if (!votes || votes.length === 0) return false;
 
   let state = chess.deserialize(game.state);
 
@@ -181,17 +171,25 @@ export async function resolveRound(round: RoundRow): Promise<void> {
   const nextState = chess.serialize(state);
   const ended = status !== "active";
 
-  // 4. Mark the round resolved.
-  const { error: roundErr } = await db
+  // 4. Atomic flip — this is the lock. The UPDATE filters on status='open',
+  //    so two concurrent resolveRound calls cannot both claim the row: PG
+  //    serialises them and the loser's WHERE no longer matches. We use
+  //    .select() to get back the updated row(s); zero rows means we lost.
+  const { data: claimed, error: roundErr } = await db
     .from("rounds")
     .update({
       status: "resolved",
       winning_move: winningMove,
       resolved_at: new Date().toISOString(),
     })
-    .eq("id", round.id);
+    .eq("id", round.id)
+    .eq("status", "open")
+    .select();
   if (roundErr) {
     throw new Error(`resolveRound: round update failed (${roundErr.message})`);
+  }
+  if (!claimed || claimed.length === 0) {
+    return false; // raced — someone else resolved it
   }
 
   // 5. Advance the game.
@@ -212,9 +210,10 @@ export async function resolveRound(round: RoundRow): Promise<void> {
   if (!ended) {
     await openRound(game.id, nextState, round.move_number + 1);
   }
+  return true;
 }
 
-/** Resolve every open round whose deadline has passed. Returns the count. */
+/** Resolve every expired open round; returns the count actually resolved. */
 export async function sweepExpiredRounds(): Promise<number> {
   const { data: expired, error } = await supabaseAdmin()
     .from("rounds")
@@ -224,8 +223,9 @@ export async function sweepExpiredRounds(): Promise<number> {
   if (error) {
     throw new Error(`sweepExpiredRounds query failed: ${error.message}`);
   }
+  let resolved = 0;
   for (const round of expired ?? []) {
-    await resolveRound(round);
+    if (await resolveRound(round)) resolved += 1;
   }
-  return expired?.length ?? 0;
+  return resolved;
 }
