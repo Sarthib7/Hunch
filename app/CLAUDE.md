@@ -23,6 +23,15 @@ find node_modules/.pnpm -path "*@aboutcircles+sdk-*/dist/**/*.d.ts"
 
 The bundled `index.js` is minified but readable enough to confirm runtime behavior (search for the error string a user reports — that tells you which branch they hit).
 
+### Or pull fresh docs via Context7
+
+When `node_modules` doesn't have the answer (e.g. you need a sub-package not yet installed, or a `circles_query` table catalog), the Circles team publishes two Context7 libraries:
+
+- `aboutcircles/sdk` — per-package API reference for `@aboutcircles/sdk`, `sdk-core`, `sdk-rpc`, `sdk-runner`, `sdk-pathfinder`, `sdk-profiles`, `sdk-transfers`, with current code examples
+- `aboutcircles/circles-docs` — protocol concepts, RPC method list, profile spec, embedded miniapp patterns
+
+If your editor has the Context7 MCP server wired up, prefix Circles-API questions with `use library /aboutcircles/sdk` (or `/aboutcircles/circles-docs` for protocol/host topics) so the agent grounds on the current docs instead of pre-training data. The aboutcircles docs site also takes ad-hoc questions: `GET https://docs.aboutcircles.com/<path>.md?ask=<question>`.
+
 ### Probe the live RPC before writing UI
 
 The Circles indexer is at `https://rpc.aboutcircles.com/`. For any new query, hit it directly first so you know the response shape:
