@@ -7,7 +7,7 @@ import { parseVoteReference } from "@/lib/circles/vote";
 import { chess } from "@/lib/games/chess";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
-import { ANTE_CRC } from "./config";
+import { ANTE_CRC, VOTER_COOLDOWN_MS } from "./config";
 
 const CIRCLES_RPC = "https://rpc.aboutcircles.com/";
 const POOL_ADDRESS = process.env.NEXT_PUBLIC_POOL_ADDRESS?.toLowerCase();
@@ -200,6 +200,22 @@ async function recordVote(
     if (!trust.verified) return false;
   } catch {
     return false;
+  }
+
+  // Per-voter cooldown — keeps any one voter from dominating consecutive
+  // rounds under first-vote-wins resolution. The stake CRC is already in the
+  // pool (the transfer has been mined); rejecting here just means the vote
+  // isn't counted. UI gating to prevent wasted stakes is roadmap.
+  if (VOTER_COOLDOWN_MS > 0) {
+    const cooldownStart = new Date(Date.now() - VOTER_COOLDOWN_MS).toISOString();
+    const { data: recent } = await db
+      .from("votes")
+      .select("id")
+      .eq("voter", stake.from)
+      .gt("created_at", cooldownStart)
+      .limit(1)
+      .maybeSingle();
+    if (recent) return false;
   }
 
   // Record the vote. unique(round_id, voter) enforces one-person-one-vote;
