@@ -4,7 +4,6 @@ import { Chess } from "chess.js";
 import { useState } from "react";
 
 import { ChessBoard } from "@/components/game/ChessBoard";
-import { Countdown } from "@/components/game/Countdown";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -111,10 +110,7 @@ function LiveGameView({
           {ended ? (
             <>Game over · {game.move_number} plies played</>
           ) : round ? (
-            <>
-              The crowd&apos;s move · closes in{" "}
-              <Countdown deadline={round.deadline} />
-            </>
+            <>The crowd&apos;s move · vote to advance the game</>
           ) : (
             <>Next round opening…</>
           )}

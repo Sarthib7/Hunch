@@ -138,10 +138,17 @@ export async function resolveRound(round: RoundRow): Promise<void> {
     throw new Error(`resolveRound: votes query failed (${voteErr.message})`);
   }
 
+  // No-fallback policy: the bot waits for the crowd. If no one voted by the
+  // deadline, leave the round open and let votes trickle in — resolution will
+  // happen on the next cron tick after at least one vote lands. Chess has too
+  // many legal moves for an "alphabetically first" or "random" fallback to
+  // produce sensible play; a vote-driven cadence is the right model.
+  if (!votes || votes.length === 0) return;
+
   let state = chess.deserialize(game.state);
 
   // 1. Play the crowd's move.
-  const winningMove = tallyWinningMove(state, votes ?? []);
+  const winningMove = tallyWinningMove(state, votes);
   state = chess.applyMove(state, winningMove);
   let moveNumber = game.move_number + 1;
 
