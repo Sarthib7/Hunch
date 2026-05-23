@@ -11,10 +11,13 @@ const FRAME_ANCESTORS = [
 
 const nextConfig: NextConfig = {
   // app/ is the project root. Stray lockfiles in parent directories make
-  // Turbopack infer the wrong root, so pin it explicitly.
+  // Turbopack infer the wrong root, so pin it explicitly. Vercel's build
+  // setup also injects outputFileTracingRoot; the two must match or Next 16
+  // bails with "Couldn't find any app directory".
   turbopack: {
     root: process.cwd(),
   },
+  outputFileTracingRoot: process.cwd(),
   // Dev only: let the ngrok tunnel load Next.js dev resources (HMR, chunks).
   allowedDevOrigins: [
     "conducive-unpenetratively-joaquina.ngrok-free.dev",
