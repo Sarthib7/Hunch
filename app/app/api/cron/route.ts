@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 
 import { ensureActiveGame, sweepExpiredRounds } from "@/lib/round/lifecycle";
+import { executePendingPayouts } from "@/lib/round/payout";
 import { recordNewVotes } from "@/lib/round/votes";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Cron endpoint — drives the game forward.
- * Records new stake-votes, resolves any round past its deadline, then ensures
- * an active game exists. Ping on a schedule (Vercel Cron or an external pinger).
- * When CRON_SECRET is set, callers must send `Authorization: Bearer <CRON_SECRET>`.
+ * Records new stake-votes, resolves any round past its deadline, executes any
+ * pending crowd-win payouts, then ensures an active game exists. Ping on a
+ * schedule (Vercel Cron or an external pinger). When CRON_SECRET is set,
+ * callers must send `Authorization: Bearer <CRON_SECRET>`.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -20,11 +22,13 @@ export async function GET(request: Request) {
   try {
     const votesRecorded = await recordNewVotes();
     const roundsResolved = await sweepExpiredRounds();
+    const payouts = await executePendingPayouts();
     const game = await ensureActiveGame();
     return NextResponse.json({
       ok: true,
       votesRecorded,
       roundsResolved,
+      payouts,
       activeGameId: game.id,
       moveNumber: game.move_number,
     });

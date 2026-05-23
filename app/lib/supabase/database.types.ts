@@ -179,6 +179,46 @@ export type Database = {
         }
         Relationships: []
       }
+      // Hand-added pending Supabase regen after the payouts_table migration
+      // is applied (see commit body). Regenerate once the table exists.
+      payouts: {
+        Row: {
+          game_id: string
+          voter: string
+          amount_crc: number
+          tx_hash: string | null
+          status: string
+          attempted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          game_id: string
+          voter: string
+          amount_crc: number
+          tx_hash?: string | null
+          status?: string
+          attempted_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          game_id?: string
+          voter?: string
+          amount_crc?: number
+          tx_hash?: string | null
+          status?: string
+          attempted_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

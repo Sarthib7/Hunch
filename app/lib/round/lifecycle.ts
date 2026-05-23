@@ -5,6 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 import { ROUND_DURATION_MS } from "./config";
+import { initiatePayouts } from "./payout";
 
 type GameRow = Database["public"]["Tables"]["games"]["Row"];
 type RoundRow = Database["public"]["Tables"]["rounds"]["Row"];
@@ -209,6 +210,15 @@ export async function resolveRound(round: RoundRow): Promise<boolean> {
   // 6. Continue the game with a fresh round, or leave it ended for payout.
   if (!ended) {
     await openRound(game.id, nextState, round.move_number + 1);
+  } else if (status === "crowd_won") {
+    // Insert pending payout rows for every voter. Send happens later, via
+    // /api/cron → executePendingPayouts. Failures here are logged but don't
+    // unwind the round resolution — operator can re-run.
+    try {
+      await initiatePayouts(game.id);
+    } catch (err) {
+      console.error("initiatePayouts failed:", err);
+    }
   }
   return true;
 }

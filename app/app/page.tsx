@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveGame } from "@/hooks/use-live-game";
+import { usePayouts } from "@/hooks/use-payouts";
 import { useTrust } from "@/hooks/use-trust";
 import { useVoterCooldown, formatCooldown } from "@/hooks/use-voter-cooldown";
 import { useWaitlist } from "@/hooks/use-waitlist";
@@ -165,7 +166,7 @@ function LiveGameView({
           disabled={!canVote}
         />
         {ended ? (
-          <ResultBanner status={game.status} pool={game.pool_crc} />
+          <ResultBanner status={game.status} pool={game.pool_crc} gameId={game.id} />
         ) : (
           <div className="space-y-2">
             <VoteStatus
@@ -243,7 +244,15 @@ function VoteStatus({
   );
 }
 
-function ResultBanner({ status, pool }: { status: string; pool: number }) {
+function ResultBanner({
+  status,
+  pool,
+  gameId,
+}: {
+  status: string;
+  pool: number;
+  gameId: string;
+}) {
   const fired = useRef(false);
   useEffect(() => {
     if (status !== "crowd_won" || fired.current) return;
@@ -269,12 +278,13 @@ function ResultBanner({ status, pool }: { status: string; pool: number }) {
 
   if (status === "crowd_won") {
     return (
-      <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-center animate-in fade-in-0 zoom-in-95 duration-500">
+      <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-center animate-in fade-in-0 zoom-in-95 duration-500">
         <p className="text-sm font-semibold text-amber-800">The crowd won 🎉</p>
         <p className="text-xs text-amber-700">
-          The {pool.toLocaleString()} CRC pool is paid out to this game&apos;s
-          voters.
+          The {pool.toLocaleString()} CRC pool is being paid out equally to
+          this game&apos;s voters.
         </p>
+        <PayoutProgress gameId={gameId} />
       </div>
     );
   }
@@ -286,6 +296,26 @@ function ResultBanner({ status, pool }: { status: string; pool: number }) {
         The {pool.toLocaleString()} CRC pool rolls into the next game.
       </p>
     </div>
+  );
+}
+
+/** Live "X / Y voters paid" indicator under a crowd-win banner. */
+function PayoutProgress({ gameId }: { gameId: string }) {
+  const payouts = usePayouts(gameId);
+  if (!payouts.loaded || payouts.total === 0) return null;
+  const allDone = payouts.sent === payouts.total;
+  return (
+    <p className="text-[11px] tabular-nums text-amber-700">
+      {allDone ? (
+        <>All {payouts.total} voters paid ✓</>
+      ) : (
+        <>
+          Paying out: {payouts.sent} / {payouts.total} sent
+          {payouts.pending > 0 && ` · ${payouts.pending} pending`}
+          {payouts.failed > 0 && ` · ${payouts.failed} failed`}
+        </>
+      )}
+    </p>
   );
 }
 
