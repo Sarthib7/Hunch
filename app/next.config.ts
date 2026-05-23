@@ -3,10 +3,15 @@ import type { NextConfig } from "next";
 // The Circles host loads miniapps inside an iframe. Default Next.js responses
 // would block that with `X-Frame-Options: SAMEORIGIN`, so we explicitly allow
 // the Circles host (prod + dev + any future subdomain) and Vercel preview deploys.
+// Frame-ancestors is locked to (a) the Circles host (`*.gnosis.io` covers
+// circles.gnosis.io + circles-dev.gnosis.io) and (b) this project's own Vercel
+// previews/aliases. Pinning to `hunch-*.vercel.app` instead of `*.vercel.app`
+// prevents any other Vercel deploy from iframing the app and posting messages.
 const FRAME_ANCESTORS = [
   "'self'",
   "https://*.gnosis.io",
-  "https://*.vercel.app",
+  "https://hunch-*.vercel.app",
+  "https://quorum-theta-peach.vercel.app",
 ].join(" ");
 
 const nextConfig: NextConfig = {
