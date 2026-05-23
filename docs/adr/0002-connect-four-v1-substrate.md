@@ -1,6 +1,6 @@
 # ADR-0002: Connect Four as the v1 game substrate
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0008](0008-chess-as-v1-1-substrate.md) on 2026-05-23
 - **Date:** 2026-05-20
 
 ## Context
