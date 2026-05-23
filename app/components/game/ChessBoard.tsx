@@ -3,6 +3,7 @@
 import { Chess, type Color, type PieceSymbol, type Square } from "chess.js";
 import { useMemo, useState } from "react";
 
+import { haptic } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
@@ -109,11 +110,13 @@ export function ChessBoard({
   function handleSquareClick(sq: Square) {
     if (!onVote || disabled) return;
     if (selected && targets?.has(sq)) {
+      haptic("confirm");
       onVote(targets.get(sq)!);
       setSelected(null);
       return;
     }
     if (movesByFrom.has(sq)) {
+      haptic("tap");
       setSelected((prev) => (prev === sq ? null : sq));
       return;
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Chess } from "chess.js";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChessBoard } from "@/components/game/ChessBoard";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { formatCooldown, useVoterCooldown } from "@/hooks/use-voter-cooldown";
 import { useWallet } from "@/hooks/use-wallet";
 import { buildStakeVoteTx } from "@/lib/circles/vote";
 import { chess } from "@/lib/games/chess";
+import { haptic } from "@/lib/haptics";
 import { ANTE_CRC } from "@/lib/round/config";
 import type { Database } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,17 @@ function LiveGameView({
   const legalMoves = chess.legalMoves(state);
   const ended = game.status !== "active";
   const lastMoves = reconstructLastMoves(lastResolved, game.state);
+
+  // Fire a haptic "arrive" pulse the first time the bot's move shows up
+  // for a given game-ply — signals "the board changed, look here".
+  const lastBotKey = lastMoves?.bot ? `${game.move_number}:${lastMoves.bot}` : null;
+  const prevBotKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastBotKey && lastBotKey !== prevBotKey.current) {
+      if (prevBotKey.current !== null) haptic("arrive");
+      prevBotKey.current = lastBotKey;
+    }
+  }, [lastBotKey]);
 
   const myAddress = address?.toLowerCase() ?? null;
   const recordedVote = myAddress
