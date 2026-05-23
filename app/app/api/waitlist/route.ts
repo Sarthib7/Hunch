@@ -47,7 +47,13 @@ export async function POST(request: Request) {
 
   const { error } = await db.from("waitlist").insert({ address });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Don't surface error.message to the client — Supabase errors can leak
+    // table / constraint / RLS detail. Log server-side for debugging.
+    console.error("waitlist insert failed:", error.message);
+    return NextResponse.json(
+      { error: "Couldn't add you to the waitlist — try again in a moment." },
+      { status: 500 },
+    );
   }
   return NextResponse.json({ ok: true, alreadyOnList: false });
 }
