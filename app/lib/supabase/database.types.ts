@@ -85,7 +85,7 @@ export type Database = {
           move_number: number
           resolved_at: string | null
           status: string
-          winning_move: number | null
+          winning_move: string | null
         }
         Insert: {
           board_before: string
@@ -96,7 +96,7 @@ export type Database = {
           move_number: number
           resolved_at?: string | null
           status?: string
-          winning_move?: number | null
+          winning_move?: string | null
         }
         Update: {
           board_before?: string
@@ -107,7 +107,7 @@ export type Database = {
           move_number?: number
           resolved_at?: string | null
           status?: string
-          winning_move?: number | null
+          winning_move?: string | null
         }
         Relationships: [
           {
@@ -123,7 +123,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          move: number
+          move: string
           round_id: string
           stake_crc: number
           tx_hash: string
@@ -132,7 +132,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          move: number
+          move: string
           round_id: string
           stake_crc: number
           tx_hash: string
@@ -141,7 +141,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          move?: number
+          move?: string
           round_id?: string
           stake_crc?: number
           tx_hash?: string

@@ -1,7 +1,6 @@
 import "server-only";
 
-import { connectFour, connectFourBot } from "@/lib/games/connect-four";
-import type { C4State } from "@/lib/games/connect-four";
+import { chess, chessBot } from "@/lib/games/chess";
 import type { Database } from "@/lib/supabase/database.types";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
@@ -13,40 +12,35 @@ type VoteRow = Database["public"]["Tables"]["votes"]["Row"];
 
 export type GameStatus = "active" | "crowd_won" | "crowd_lost" | "draw";
 
-// Columns ordered centre-first — used to pick a sensible default move.
-const COLS_CENTRE_FIRST = [3, 2, 4, 1, 5, 0, 6];
-
-/** Most central legal column — the fallback when a round draws no votes. */
-function centreMostLegal(state: C4State): number {
-  const legal = connectFour.legalMoves(state);
-  for (const col of COLS_CENTRE_FIRST) {
-    if (legal.includes(col)) return col;
+/** Deterministic fallback when nobody votes — alphabetically first legal UCI. */
+function fallbackMove(state: string): string {
+  const legal = chess.legalMoves(state);
+  if (legal.length === 0) {
+    throw new Error("no legal moves in a position the game still considers playing");
   }
-  return legal[0];
+  return [...legal].sort()[0];
 }
 
 /**
- * The crowd's chosen column for a round: the most-voted legal move, ties
- * broken by lowest column index; the centre-most legal column if nobody voted.
+ * The crowd's chosen move for a round: the most-voted legal UCI, ties broken
+ * alphabetically; the fallback move if nobody voted.
  */
-function tallyWinningMove(state: C4State, votes: VoteRow[]): number {
-  const legal = connectFour.legalMoves(state);
-  const legalSet = new Set(legal);
-  const counts = new Map<number, number>();
+function tallyWinningMove(state: string, votes: VoteRow[]): string {
+  const legalSet = new Set(chess.legalMoves(state));
+  const counts = new Map<string, number>();
   for (const vote of votes) {
     if (legalSet.has(vote.move)) {
       counts.set(vote.move, (counts.get(vote.move) ?? 0) + 1);
     }
   }
-  if (counts.size === 0) return centreMostLegal(state);
+  if (counts.size === 0) return fallbackMove(state);
 
-  let best = legal[0];
+  let best = "";
   let bestCount = -1;
-  for (const col of legal) {
-    const count = counts.get(col) ?? 0;
-    if (count > bestCount) {
+  for (const [uci, count] of counts) {
+    if (count > bestCount || (count === bestCount && uci < best)) {
       bestCount = count;
-      best = col;
+      best = uci;
     }
   }
   return best;
@@ -96,10 +90,11 @@ export async function ensureActiveGame(): Promise<GameRow> {
       ? last.pool_crc
       : 0;
 
-  const initial = connectFour.serialize(connectFour.initialState());
+  const initial = chess.serialize(chess.initialState());
   const { data: game, error: insertErr } = await db
     .from("games")
     .insert({
+      game_engine: chess.id,
       state: initial,
       status: "active",
       move_number: 0,
@@ -143,30 +138,30 @@ export async function resolveRound(round: RoundRow): Promise<void> {
     throw new Error(`resolveRound: votes query failed (${voteErr.message})`);
   }
 
-  let state = connectFour.deserialize(game.state);
+  let state = chess.deserialize(game.state);
 
   // 1. Play the crowd's move.
   const winningMove = tallyWinningMove(state, votes ?? []);
-  state = connectFour.applyMove(state, winningMove);
+  state = chess.applyMove(state, winningMove);
   let moveNumber = game.move_number + 1;
 
   // 2. Result after the crowd's move.
   let status: GameStatus = "active";
-  let result = connectFour.result(state);
-  if (result.status === "win") status = "crowd_won";
+  let result = chess.result(state);
+  if (result.status === "win") status = result.winner === 1 ? "crowd_won" : "crowd_lost";
   else if (result.status === "draw") status = "draw";
 
   // 3. The bot replies if the game is still going.
   if (status === "active") {
-    const botMove = connectFourBot.pickMove(state);
-    state = connectFour.applyMove(state, botMove);
+    const botMove = chessBot.pickMove(state);
+    state = chess.applyMove(state, botMove);
     moveNumber += 1;
-    result = connectFour.result(state);
-    if (result.status === "win") status = "crowd_lost";
+    result = chess.result(state);
+    if (result.status === "win") status = result.winner === 1 ? "crowd_won" : "crowd_lost";
     else if (result.status === "draw") status = "draw";
   }
 
-  const nextState = connectFour.serialize(state);
+  const nextState = chess.serialize(state);
   const ended = status !== "active";
 
   // 4. Mark the round resolved.

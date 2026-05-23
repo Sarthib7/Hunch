@@ -16,7 +16,7 @@ export type GameResult =
  * from the on-chain vote history (see PRD.md §10).
  */
 export interface GameEngine<S, M> {
-  /** Stable identifier, e.g. "connect-four". */
+  /** Stable identifier, e.g. "chess". */
   readonly id: string;
   /** Starting position. The crowd (player 1) moves first. */
   initialState(): S;

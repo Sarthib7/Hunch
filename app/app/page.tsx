@@ -1,8 +1,9 @@
 "use client";
 
+import { Chess } from "chess.js";
 import { useState } from "react";
 
-import { Board } from "@/components/game/Board";
+import { ChessBoard } from "@/components/game/ChessBoard";
 import { Countdown } from "@/components/game/Countdown";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,7 @@ import { useLiveGame } from "@/hooks/use-live-game";
 import { useTrust } from "@/hooks/use-trust";
 import { useWallet } from "@/hooks/use-wallet";
 import { buildStakeVoteTx } from "@/lib/circles/vote";
-import { COLS, connectFour } from "@/lib/games/connect-four";
+import { chess } from "@/lib/games/chess";
 import { ANTE_CRC } from "@/lib/round/config";
 import type { Database } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,7 @@ type VoteRow = Database["public"]["Tables"]["votes"]["Row"];
 type VoteState =
   | { kind: "idle" }
   | { kind: "signing" }
-  | { kind: "submitted"; col: number }
+  | { kind: "submitted"; uci: string }
   | { kind: "error"; message: string };
 
 export default function GamePage() {
@@ -62,15 +63,15 @@ function LiveGameView({
   const verified = useTrust(isConnected ? address : null);
   const [vote, setVote] = useState<VoteState>({ kind: "idle" });
 
-  const state = connectFour.deserialize(game.state);
-  const legalMoves = connectFour.legalMoves(state);
+  const state = chess.deserialize(game.state);
+  const legalMoves = chess.legalMoves(state);
   const ended = game.status !== "active";
 
   const myAddress = address?.toLowerCase() ?? null;
   const recordedVote = myAddress
     ? (votes.find((v) => v.voter.toLowerCase() === myAddress)?.move ?? null)
     : null;
-  const myVote = vote.kind === "submitted" ? vote.col : recordedVote;
+  const myVote = vote.kind === "submitted" ? vote.uci : recordedVote;
   const hasVoted = myVote !== null;
 
   const canVote =
@@ -81,14 +82,14 @@ function LiveGameView({
     !hasVoted &&
     vote.kind !== "signing";
 
-  async function handleVote(col: number) {
+  async function handleVote(uci: string) {
     if (!round || !address) return;
     setVote({ kind: "signing" });
     try {
-      const tx = buildStakeVoteTx(address, round.id, col);
+      const tx = buildStakeVoteTx(address, round.id, uci);
       const { sendTransactions } = await import("@aboutcircles/miniapp-sdk");
       await sendTransactions([tx]);
-      setVote({ kind: "submitted", col });
+      setVote({ kind: "submitted", uci });
     } catch (err) {
       setVote({
         kind: "error",
@@ -108,7 +109,7 @@ function LiveGameView({
         </CardTitle>
         <CardDescription>
           {ended ? (
-            <>Game over · {game.move_number} moves played</>
+            <>Game over · {game.move_number} plies played</>
           ) : round ? (
             <>
               The crowd&apos;s move · closes in{" "}
@@ -120,12 +121,13 @@ function LiveGameView({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Board
-          state={state}
+        <ChessBoard
+          fen={state}
           legalMoves={legalMoves}
-          votes={ended ? undefined : columnTally(votes)}
+          votes={ended ? undefined : moveTally(votes)}
           myVote={myVote}
           onVote={canVote ? handleVote : undefined}
+          disabled={!canVote}
         />
         {ended ? (
           <ResultBanner status={game.status} pool={game.pool_crc} />
@@ -136,6 +138,7 @@ function LiveGameView({
             verified={verified}
             hasVoted={hasVoted}
             myVote={myVote}
+            fen={state}
           />
         )}
       </CardContent>
@@ -149,12 +152,14 @@ function VoteStatus({
   verified,
   hasVoted,
   myVote,
+  fen,
 }: {
   vote: VoteState;
   isConnected: boolean;
   verified: boolean | null;
   hasVoted: boolean;
-  myVote: number | null;
+  myVote: string | null;
+  fen: string;
 }) {
   let tone: "muted" | "amber" | "destructive" = "muted";
   let text: string;
@@ -164,9 +169,9 @@ function VoteStatus({
     text = vote.message;
   } else if (vote.kind === "signing") {
     text = "Waiting for your approval in Circles…";
-  } else if (hasVoted && myVote !== null) {
+  } else if (hasVoted && myVote) {
     tone = "amber";
-    text = `You voted column ${myVote + 1}, staking ${ANTE_CRC} CRC — it joins the tally once confirmed on-chain.`;
+    text = `You voted ${uciToSan(fen, myVote)}, staking ${ANTE_CRC} CRC — it joins the tally once confirmed on-chain.`;
   } else if (!isConnected) {
     text = "Open this in the Circles app to vote.";
   } else if (verified === null) {
@@ -175,7 +180,7 @@ function VoteStatus({
     text =
       "Only trust-verified avatars can vote — you need at least one trust connection on Circles.";
   } else {
-    text = `Tap a column to stake ${ANTE_CRC} CRC and vote on the crowd's move.`;
+    text = `Pick a move on the board and stake ${ANTE_CRC} CRC to vote.`;
   }
 
   return (
@@ -215,12 +220,29 @@ function ResultBanner({ status, pool }: { status: string; pool: number }) {
   );
 }
 
-function columnTally(votes: VoteRow[]): number[] {
-  const counts = Array<number>(COLS).fill(0);
+function moveTally(votes: VoteRow[]): Record<string, number> {
+  const counts: Record<string, number> = {};
   for (const vote of votes) {
-    if (vote.move >= 0 && vote.move < COLS) counts[vote.move] += 1;
+    if (vote.move.length >= 4) {
+      counts[vote.move] = (counts[vote.move] ?? 0) + 1;
+    }
   }
   return counts;
+}
+
+function uciToSan(fen: string, uci: string): string {
+  if (uci.length < 4) return uci;
+  try {
+    const game = new Chess(fen);
+    const move = game.move({
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      promotion: uci.length === 5 ? uci[4] : undefined,
+    });
+    return move.san;
+  } catch {
+    return uci;
+  }
 }
 
 function GameSkeleton() {

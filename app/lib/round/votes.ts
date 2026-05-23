@@ -4,7 +4,7 @@ import { decodeCrcV2TransferData } from "@aboutcircles/sdk-utils";
 
 import { getTrustStatus } from "@/lib/circles/trust";
 import { parseVoteReference } from "@/lib/circles/vote";
-import { connectFour } from "@/lib/games/connect-four";
+import { chess } from "@/lib/games/chess";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 import { ANTE_CRC } from "./config";
@@ -157,7 +157,7 @@ export async function recordNewVotes(): Promise<number> {
 /** Validate a single stake transfer and, if it's a valid vote, record it. */
 async function recordVote(
   stake: StakeEvent,
-  vote: { roundId: string; move: number },
+  vote: { roundId: string; move: string },
   stakedAtto: bigint,
 ): Promise<boolean> {
   const db = supabaseAdmin();
@@ -184,8 +184,8 @@ async function recordVote(
   if (!round || round.status !== "open") return false;
 
   // The move must be legal in the round's position.
-  const state = connectFour.deserialize(round.board_before);
-  if (!connectFour.legalMoves(state).includes(vote.move)) return false;
+  const state = chess.deserialize(round.board_before);
+  if (!chess.legalMoves(state).includes(vote.move)) return false;
 
   // The voter must be trust-verified — the Sybil gate. Fail closed.
   try {

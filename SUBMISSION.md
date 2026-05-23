@@ -44,7 +44,7 @@ Open a PR to `aboutcircles/CirclesMiniapps` (against `master`) adding this to
   "name": "Hunch",
   "logo": "",
   "url": "https://<deploy>/",
-  "description": "A crowd plays Connect Four against a bot — every move a trust-gated, staked vote.",
+  "description": "A crowd plays chess against a bot — every move a trust-gated, 1-CRC staked vote among Circles-verified avatars.",
   "tags": ["game", "voting"],
   "category": "garage",
   "isHidden": false
@@ -64,7 +64,7 @@ None of the backend has run yet. In the Circles playground
 (`https://circles.gnosis.io/playground?url=<deploy>`):
 
 1. Hit `/api/cron` once → a game and its first round should appear.
-2. From a trust-verified avatar, tap a column → approve the 1-CRC transfer.
+2. From a trust-verified avatar, tap a piece → tap a destination → approve the 1-CRC transfer.
 3. Hit `/api/cron` again → the vote should land in the live tally.
 4. Let a round's deadline pass, hit `/api/cron` → the move plays, the bot replies.
 

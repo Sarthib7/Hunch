@@ -6,7 +6,7 @@ import { ANTE_CRC } from "@/lib/round/config";
 import { HUB_V2_ADDRESS, safeTransferFromAbi, toTokenId } from "./hub";
 
 // A vote is a flat-ante CRC stake transferred from the voter into the pool,
-// carrying the round + column in the transfer metadata.
+// carrying the round + UCI move in the transfer metadata.
 //
 // Which token is staked: a fixed demo group's CRC (STAKE_GROUP). Circles users
 // hold their balance as group CRC — personal CRC is minted slowly and is mostly
@@ -35,17 +35,21 @@ const STAKE_GROUP = "0xC19BC204eb1c1D5B3FE500E5E5dfaBaB625F286c";
 const ATTO = 10n ** 18n;
 
 /** A vote's on-chain reference, carried in the CRC transfer metadata. */
-export function voteReference(roundId: string, move: number): string {
+export function voteReference(roundId: string, move: string): string {
   return `hunch.${roundId}.${move}`;
 }
 
-/** Parse a vote reference back to { roundId, move }, or null if malformed. */
+/**
+ * Parse a vote reference back to { roundId, move }, or null if malformed.
+ * `move` is a UCI string ("e2e4", "e7e8q") — see lib/games/chess.ts.
+ */
 export function parseVoteReference(
   reference: string,
-): { roundId: string; move: number } | null {
-  const match = /^hunch\.([0-9a-fA-F-]+)\.([0-6])$/.exec(reference);
+): { roundId: string; move: string } | null {
+  const match =
+    /^hunch\.([0-9a-fA-F-]+)\.([a-h][1-8][a-h][1-8][qrbn]?)$/.exec(reference);
   if (!match) return null;
-  return { roundId: match[1], move: Number(match[2]) };
+  return { roundId: match[1], move: match[2] };
 }
 
 export interface HostTransaction {
@@ -56,14 +60,14 @@ export interface HostTransaction {
 
 /**
  * Build the host transaction for a stake-vote: a flat-ante transfer of
- * STAKE_GROUP's CRC from the voter to the pool, carrying the round + column in
- * metadata. Pass the result to `sendTransactions([tx])` from
+ * STAKE_GROUP's CRC from the voter to the pool, carrying the round + UCI move
+ * in metadata. Pass the result to `sendTransactions([tx])` from
  * @aboutcircles/miniapp-sdk.
  */
 export function buildStakeVoteTx(
   voter: string,
   roundId: string,
-  move: number,
+  move: string,
 ): HostTransaction {
   if (!POOL_ADDRESS) {
     throw new Error(
