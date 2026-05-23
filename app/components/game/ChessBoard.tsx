@@ -28,6 +28,12 @@ export interface ChessBoardProps {
   votes?: Record<string, number>;
   /** The UCI move the current user has voted for this round, if any. */
   myVote?: string | null;
+  /**
+   * Previous ply pair to highlight as "the move just played" — crowd's
+   * winning_move and the bot's reply derived from the FEN diff. Up to four
+   * squares get a steady amber wash so users can see what changed.
+   */
+  lastMoves?: { crowd?: string; bot?: string };
   /** Cast a vote for a UCI move. Omit to render the board read-only. */
   onVote?: (uci: string) => void;
   /** Voting is not currently possible — round closed, not the crowd's turn, etc. */
@@ -44,6 +50,7 @@ export function ChessBoard({
   legalMoves,
   votes,
   myVote,
+  lastMoves,
   onVote,
   disabled,
 }: ChessBoardProps) {
@@ -85,6 +92,20 @@ export function ChessBoard({
   const myFrom = myVote && myVote.length >= 4 ? (myVote.slice(0, 2) as Square) : null;
   const myTo = myVote && myVote.length >= 4 ? (myVote.slice(2, 4) as Square) : null;
 
+  // Squares involved in the most recently played move pair (crowd + bot).
+  // Rendered with a steady amber wash so the player can immediately see what
+  // changed when Realtime pushes a new position.
+  const lastMoveSquares = useMemo(() => {
+    const set = new Set<Square>();
+    for (const uci of [lastMoves?.crowd, lastMoves?.bot]) {
+      if (uci && uci.length >= 4) {
+        set.add(uci.slice(0, 2) as Square);
+        set.add(uci.slice(2, 4) as Square);
+      }
+    }
+    return set;
+  }, [lastMoves?.crowd, lastMoves?.bot]);
+
   function handleSquareClick(sq: Square) {
     if (!onVote || disabled) return;
     if (selected && targets?.has(sq)) {
@@ -123,6 +144,7 @@ export function ChessBoard({
               const heatRatio = maxHeat > 0 ? heat / maxHeat : 0;
               const isMyFrom = myFrom === sq;
               const isMyTo = myTo === sq;
+              const isLastMove = lastMoveSquares.has(sq);
 
               return (
                 <Cell
@@ -137,6 +159,7 @@ export function ChessBoard({
                   heatRatio={heatRatio}
                   isMyFrom={isMyFrom}
                   isMyTo={isMyTo}
+                  isLastMove={isLastMove}
                   showVotes={votes !== undefined}
                   onClick={() => handleSquareClick(sq)}
                 />
@@ -184,6 +207,7 @@ interface CellProps {
   heatRatio: number;
   isMyFrom: boolean;
   isMyTo: boolean;
+  isLastMove: boolean;
   showVotes: boolean;
   onClick: () => void;
 }
@@ -199,6 +223,7 @@ function Cell({
   heatRatio,
   isMyFrom,
   isMyTo,
+  isLastMove,
   showVotes,
   onClick,
 }: CellProps) {
@@ -214,11 +239,15 @@ function Cell({
           : square
       }
       className={cn(
-        "relative flex aspect-square items-center justify-center text-2xl sm:text-3xl",
+        "relative flex aspect-square items-center justify-center text-2xl transition-colors duration-300 sm:text-3xl",
         // Square colour. Light squares slightly warmer than the page background
         // so the board reads as a distinct surface.
         isLight ? "bg-stone-50" : "bg-stone-200",
+        // Last-played move — steady amber wash on the from/to of the previous
+        // crowd + bot moves. Tells the user at a glance what just changed.
+        isLastMove && "bg-amber-200/70",
         // Vote heat — subtle amber wash, proportional to the leading move.
+        // Wins over last-move highlight on the same square (more relevant now).
         showVotes && heat > 0 && "bg-amber-100/60",
         showVotes && heat > 0 && heatRatio === 1 && "bg-amber-200/80",
         // Selection + targets.

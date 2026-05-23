@@ -44,7 +44,12 @@ export default function GamePage() {
         <ErrorState message={live.message} onRetry={refetch} />
       )}
       {live.phase === "ready" && (
-        <LiveGameView game={live.game} round={live.round} votes={live.votes} />
+        <LiveGameView
+          game={live.game}
+          round={live.round}
+          votes={live.votes}
+          lastResolved={live.lastResolved}
+        />
       )}
     </div>
   );
@@ -54,10 +59,12 @@ function LiveGameView({
   game,
   round,
   votes,
+  lastResolved,
 }: {
   game: GameRow;
   round: RoundRow | null;
   votes: VoteRow[];
+  lastResolved: RoundRow | null;
 }) {
   const { address, isConnected } = useWallet();
   const verified = useTrust(isConnected ? address : null);
@@ -67,6 +74,7 @@ function LiveGameView({
   const state = chess.deserialize(game.state);
   const legalMoves = chess.legalMoves(state);
   const ended = game.status !== "active";
+  const lastMoves = reconstructLastMoves(lastResolved, game.state);
 
   const myAddress = address?.toLowerCase() ?? null;
   const recordedVote = myAddress
@@ -139,6 +147,7 @@ function LiveGameView({
           legalMoves={legalMoves}
           votes={ended ? undefined : moveTally(votes)}
           myVote={myVote}
+          lastMoves={lastMoves}
           onVote={canVote ? handleVote : undefined}
           disabled={!canVote}
         />
@@ -237,6 +246,37 @@ function ResultBanner({ status, pool }: { status: string; pool: number }) {
       </p>
     </div>
   );
+}
+
+/**
+ * Reconstruct the most recent crowd + bot moves from the latest resolved
+ * round and the game's current FEN. The bot's move is derived by FEN diff:
+ * iterate the legal moves from the post-crowd position and pick the one that
+ * produces the current game state. Returns null arms when there's nothing to
+ * highlight (no resolved round yet, or the state diff doesn't match — e.g.
+ * the game ended after the crowd's move).
+ */
+function reconstructLastMoves(
+  lastResolved: RoundRow | null,
+  currentFen: string,
+): { crowd?: string; bot?: string } | undefined {
+  if (!lastResolved || !lastResolved.winning_move) return undefined;
+  const crowd = lastResolved.winning_move;
+  try {
+    const afterCrowd = chess.applyMove(lastResolved.board_before, crowd);
+    if (afterCrowd === currentFen) {
+      // Game ended on the crowd's move, or no bot reply yet.
+      return { crowd };
+    }
+    for (const candidate of chess.legalMoves(afterCrowd)) {
+      if (chess.applyMove(afterCrowd, candidate) === currentFen) {
+        return { crowd, bot: candidate };
+      }
+    }
+    return { crowd };
+  } catch {
+    return undefined;
+  }
 }
 
 function moveTally(votes: VoteRow[]): Record<string, number> {

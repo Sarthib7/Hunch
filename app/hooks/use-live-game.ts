@@ -13,7 +13,14 @@ export type LiveGame =
   | { phase: "loading" }
   | { phase: "empty" }
   | { phase: "error"; message: string }
-  | { phase: "ready"; game: GameRow; round: RoundRow | null; votes: VoteRow[] };
+  | {
+      phase: "ready";
+      game: GameRow;
+      round: RoundRow | null;
+      votes: VoteRow[];
+      /** Most recent resolved round of this game — used to highlight the last move. */
+      lastResolved: RoundRow | null;
+    };
 
 /**
  * Streams the current game, its open round, and the live vote tally.
@@ -55,7 +62,25 @@ export function useLiveGame(): { live: LiveGame; refetch: () => void } {
         votes = voteRows ?? [];
       }
 
-      setLive({ phase: "ready", game, round: round ?? null, votes });
+      // Latest resolved round — gives us board_before + winning_move so the
+      // page can reconstruct the bot's reply (FEN diff) and highlight both
+      // squares as the most recent move.
+      const { data: lastResolved } = await supabase
+        .from("rounds")
+        .select("*")
+        .eq("game_id", game.id)
+        .eq("status", "resolved")
+        .order("move_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setLive({
+        phase: "ready",
+        game,
+        round: round ?? null,
+        votes,
+        lastResolved: lastResolved ?? null,
+      });
     } catch (err) {
       setLive({
         phase: "error",
