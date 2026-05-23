@@ -157,6 +157,28 @@ export type Database = {
           },
         ]
       }
+      // Hand-added pending Supabase regen after the waitlist_table migration
+      // is applied (see migrations referenced in lib/round/waitlist or commit
+      // body). Regenerate this file via `generate_typescript_types` once the
+      // table exists and this block will be replaced identically.
+      waitlist: {
+        Row: {
+          address: string
+          created_at: string
+          trusted: boolean
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          trusted?: boolean
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          trusted?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
