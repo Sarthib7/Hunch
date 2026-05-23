@@ -15,7 +15,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveGame } from "@/hooks/use-live-game";
 import { useTrust } from "@/hooks/use-trust";
-import { formatCooldown, useVoterCooldown } from "@/hooks/use-voter-cooldown";
+import { useVoterCooldown, formatCooldown } from "@/hooks/use-voter-cooldown";
+import { useWaitlist } from "@/hooks/use-waitlist";
 import { useWallet } from "@/hooks/use-wallet";
 import { buildStakeVoteTx } from "@/lib/circles/vote";
 import { chess } from "@/lib/games/chess";
@@ -166,15 +167,20 @@ function LiveGameView({
         {ended ? (
           <ResultBanner status={game.status} pool={game.pool_crc} />
         ) : (
-          <VoteStatus
-            vote={vote}
-            isConnected={isConnected}
-            verified={verified}
-            hasVoted={hasVoted}
-            myVote={myVote}
-            fen={state}
-            cooldown={cooldown}
-          />
+          <div className="space-y-2">
+            <VoteStatus
+              vote={vote}
+              isConnected={isConnected}
+              verified={verified}
+              hasVoted={hasVoted}
+              myVote={myVote}
+              fen={state}
+              cooldown={cooldown}
+            />
+            {isConnected && verified === false && (
+              <WaitlistPrompt address={address ?? null} />
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
@@ -312,6 +318,64 @@ function reconstructLastMoves(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Surface a "Join the waitlist" CTA in the verified===false branch. The
+ * operator later runs scripts/trust-voters.mjs against the waitlist table
+ * to grant on-chain trust; once granted, the useTrust hook flips verified
+ * to true and this whole prompt is no longer rendered.
+ */
+function WaitlistPrompt({ address }: { address: string | null }) {
+  const waitlist = useWaitlist(address);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!address || waitlist.state === "loading") return null;
+  // `trusted` shouldn't happen here (we only render when verified === false)
+  // but guard anyway in case the on-chain check is briefly stale.
+  if (waitlist.state === "trusted") return null;
+
+  if (waitlist.state === "on-list") {
+    return (
+      <p className="text-center text-xs text-amber-700">
+        You&apos;re on the waitlist — we&apos;ll trust you in time for the next round.
+      </p>
+    );
+  }
+
+  async function join() {
+    if (!address) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? `Request failed (${res.status})`);
+      }
+      // Realtime will flip the state, but refetch immediately for instant feedback
+      // in case the subscription hasn't caught up yet.
+      waitlist.refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't add you to the waitlist");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <Button size="sm" variant="secondary" onClick={join} disabled={submitting}>
+        {submitting ? "Adding…" : "Add me to the waitlist"}
+      </Button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
 }
 
 function moveTally(votes: VoteRow[]): Record<string, number> {
