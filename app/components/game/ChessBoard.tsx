@@ -267,9 +267,13 @@ function Cell({
     >
       {piece && (
         <span
+          // `key` is the piece identity, so React remounts (and replays the
+          // zoom-in animation) only when the piece on this square actually
+          // changes — a knight arriving feels distinct from a knight idling.
+          key={`${piece.color}${piece.type}`}
           aria-hidden
           className={cn(
-            "select-none leading-none",
+            "select-none leading-none animate-in fade-in-0 zoom-in-75 duration-200",
             piece.color === "w" ? "text-amber-600" : "text-zinc-800",
           )}
           // The Unicode chess glyphs are filled — a subtle stroke separates a
@@ -283,13 +287,13 @@ function Cell({
           {GLYPH[piece.type]}
         </span>
       )}
-      {showVotes && heat > 0 && !piece && (
-        <span className="absolute right-0.5 top-0.5 rounded-full bg-amber-500/90 px-1 text-[9px] font-semibold tabular-nums text-white">
-          {heat}
-        </span>
-      )}
-      {showVotes && heat > 0 && piece && (
-        <span className="absolute right-0.5 top-0.5 rounded-full bg-amber-500/90 px-1 text-[9px] font-semibold tabular-nums text-white">
+      {showVotes && heat > 0 && (
+        // `key={heat}` re-mounts the badge whenever the count changes,
+        // replaying a brief zoom-in pulse so new votes feel alive.
+        <span
+          key={heat}
+          className="absolute right-0.5 top-0.5 rounded-full bg-amber-500/90 px-1 text-[9px] font-semibold tabular-nums text-white animate-in fade-in-0 zoom-in-95 duration-300"
+        >
           {heat}
         </span>
       )}
@@ -359,8 +363,11 @@ function CandidateList({
                 </span>
               )}
               <span
+                // Remount on count change → brief pulse, so the list feels
+                // reactive when Realtime delivers a fresh vote.
+                key={count}
                 className={cn(
-                  "font-mono tabular-nums",
+                  "font-mono tabular-nums animate-in zoom-in-95 duration-300",
                   isLeading ? "font-semibold text-foreground" : "text-muted-foreground",
                 )}
               >
