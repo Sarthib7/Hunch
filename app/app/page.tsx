@@ -15,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveGame } from "@/hooks/use-live-game";
 import { useTrust } from "@/hooks/use-trust";
+import { formatCooldown, useVoterCooldown } from "@/hooks/use-voter-cooldown";
 import { useWallet } from "@/hooks/use-wallet";
 import { buildStakeVoteTx } from "@/lib/circles/vote";
 import { chess } from "@/lib/games/chess";
@@ -60,6 +61,7 @@ function LiveGameView({
 }) {
   const { address, isConnected } = useWallet();
   const verified = useTrust(isConnected ? address : null);
+  const cooldown = useVoterCooldown(isConnected ? address : null);
   const [vote, setVote] = useState<VoteState>({ kind: "idle" });
 
   const state = chess.deserialize(game.state);
@@ -79,6 +81,7 @@ function LiveGameView({
     isConnected &&
     verified === true &&
     !hasVoted &&
+    !cooldown.inCooldown &&
     vote.kind !== "signing";
 
   async function handleVote(uci: string) {
@@ -149,6 +152,7 @@ function LiveGameView({
             hasVoted={hasVoted}
             myVote={myVote}
             fen={state}
+            cooldown={cooldown}
           />
         )}
       </CardContent>
@@ -163,6 +167,7 @@ function VoteStatus({
   hasVoted,
   myVote,
   fen,
+  cooldown,
 }: {
   vote: VoteState;
   isConnected: boolean;
@@ -170,6 +175,7 @@ function VoteStatus({
   hasVoted: boolean;
   myVote: string | null;
   fen: string;
+  cooldown: { inCooldown: boolean; msRemaining: number };
 }) {
   let tone: "muted" | "amber" | "destructive" = "muted";
   let text: string;
@@ -189,6 +195,9 @@ function VoteStatus({
   } else if (verified === false) {
     text =
       "Only trust-verified avatars can vote — you need at least one trust connection on Circles.";
+  } else if (cooldown.inCooldown) {
+    tone = "amber";
+    text = `You voted recently — next vote in ${formatCooldown(cooldown.msRemaining)}. Let someone else play first.`;
   } else {
     text = `Pick a move on the board and stake ${ANTE_CRC} CRC to vote.`;
   }
