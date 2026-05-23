@@ -238,9 +238,32 @@ function VoteStatus({
 }
 
 function ResultBanner({ status, pool }: { status: string; pool: number }) {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (status !== "crowd_won" || fired.current) return;
+    fired.current = true;
+    haptic("confirm");
+    // Dynamic import — canvas-confetti touches window at runtime, and we only
+    // need it on the rare crowd-win render anyway. Three small volleys feel
+    // celebratory without overwhelming a phone screen.
+    void import("canvas-confetti").then(({ default: confetti }) => {
+      const burst = (opts?: Parameters<typeof confetti>[0]) =>
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#fbbf24", "#f59e0b", "#b45309", "#fde68a"],
+          ...opts,
+        });
+      burst();
+      setTimeout(() => burst({ angle: 60, origin: { x: 0, y: 0.7 } }), 180);
+      setTimeout(() => burst({ angle: 120, origin: { x: 1, y: 0.7 } }), 360);
+    });
+  }, [status]);
+
   if (status === "crowd_won") {
     return (
-      <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-center">
+      <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-center animate-in fade-in-0 zoom-in-95 duration-500">
         <p className="text-sm font-semibold text-amber-800">The crowd won 🎉</p>
         <p className="text-xs text-amber-700">
           The {pool.toLocaleString()} CRC pool is paid out to this game&apos;s
@@ -251,7 +274,7 @@ function ResultBanner({ status, pool }: { status: string; pool: number }) {
   }
   const text = status === "crowd_lost" ? "The bot won this one" : "It's a draw";
   return (
-    <div className="space-y-1 rounded-lg border bg-muted/50 p-3 text-center">
+    <div className="space-y-1 rounded-lg border bg-muted/50 p-3 text-center animate-in fade-in-0 duration-500">
       <p className="text-sm font-medium">{text}</p>
       <p className="text-xs text-muted-foreground">
         The {pool.toLocaleString()} CRC pool rolls into the next game.
