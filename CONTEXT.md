@@ -63,8 +63,9 @@ close."
 Hunch's market resolution model. Losers forfeit a **penalty %** of their
 stake; that pool is split as bonus among winners. Both sides walk away
 with *something* — losing isn't a wipe. Distinct from pure pari-mutuel
-(losers zeroed) and fixed-payout (protocol absorbs imbalance). Penalty %
-TBD pending research; default 30% for code work.
+(losers zeroed) and fixed-payout (protocol absorbs imbalance). **Penalty
+= 30%** for v1 (see ADR-0014 + the research doc at
+`docs/research/2026-05-25-penalty-percent.md`).
 _Avoid_: pari-mutuel (without "soft" — implies the harsh form), 50/50,
 fade
 

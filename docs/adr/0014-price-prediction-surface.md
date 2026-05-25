@@ -60,16 +60,23 @@ Compare `close_price` to `open_price`:
 Losers forfeit a **penalty %** of their stake; that pool is split as a
 bonus among winners. Winners keep their stake AND get a bonus.
 
-Penalty % is **TBD pending parallel research** (target: by Day 1 of W2).
-Candidates under consideration: 25%, 30%, 50%. Default placeholder for
-implementation: **30%** — soft enough that a 50%-accuracy user's CRC burn
-stays acceptable over 50+ markets/day, harsh enough that conviction
-matters.
+**Penalty = 30%.** Locked 2026-05-25 — see
+[`docs/research/2026-05-25-penalty-percent.md`](../research/2026-05-25-penalty-percent.md)
+for the full analysis. Headline: at 30%, balanced markets pay winners
+**+15%** in one minute (the screenshot-worthy number), while losses feel
+psychologically ~67.5% as bad as gains (per Kahneman-Tversky λ ≈ 2.25) —
+uncomfortable but not crushing. Stdev of net result over 50 balanced
+markets at 50% accuracy is ±2.12 CRC; users don't bankrupt out.
 
 Math at 30% penalty, balanced 10 UP / 5 DOWN, UP wins:
 - UP winners (×10): get 1 CRC + (5 × 0.3 ÷ 10) = **1.15 CRC each**
 - DOWN losers (×5): get **0.7 CRC each** (forfeit 0.3)
 - Total in: 15 CRC = Total out: 15 CRC. Self-funded.
+
+The penalty knob lives in `lib/round/config.ts` next to `ANTE_CRC` — easy
+to tweak post-launch if data warrants. **Variable scaling** (penalty
+ramps up as crowd imbalance grows) was considered but deferred to v1.1
+— the static 30% baseline ships first to generate the data.
 
 Edge cases — both refund all stakes (1 CRC back to every predictor):
 - **Tie** (`close_price == open_price`) → VOID
@@ -169,17 +176,45 @@ as predictions land. Haptic on stake + on settle. Confetti on win.
   AND a cron safety net — same dual path as chess `/api/vote` +
   `/api/cron`. ~10s end-to-end is fine for a 60s market.
 
+## Gotchas (carried from the penalty research)
+
+- **One-sided markets pay almost nothing regardless of penalty %.** At
+  95/5 splits, winner upside is ~1.5–5% across all reasonable p — it's
+  structural to pari-mutuel, the penalty knob doesn't fix it.
+  **Mitigation:** show implied probability (current UP/DOWN split) in
+  the UI so predictors self-route toward contested markets.
+- **Pyth resolution variance.** Sub-second tick variance at the minute
+  boundary determines outcomes. **Pin a specific `publish_time` window**
+  in the resolver (first valid update at or after `closes_at + 1s`) and
+  ship a public "how resolution works" doc.
+- **Latency-arbitrage bots.** 15-min crypto prediction markets have
+  already been arbitraged for ~1000× gains via cross-exchange feeds
+  (Polymarket precedent, Feb 2026). 1-min markets are more vulnerable.
+  **Consider closing stakes 10–15s before the minute boundary** to
+  compress the arb window. Open product question — see below.
+- **`PAYOUT_BATCH_LIMIT = 20`** in `lib/round/payout.ts` is sized for
+  chess (1 game per day). With ~2,880 markets/day this batches out in
+  ~14 minutes per resolved minute of markets. **Bump to 200+** or move
+  to a queue worker before launch.
+- **Frame penalties in the UI as "shared with winners," not "burned."**
+  Keeps the redistributive ethos visible and aligns with Circles' "money
+  you trust" framing.
+
 ## Open questions
 
-- **Final penalty %.** Pending parallel research (see TODO/PROJECT).
-  Default 30% is the placeholder for code work; the real number gets
-  patched in before W2 ships. If research lands on 25 or 50, swap.
+- **Stake lock-out window before close?** Should `/api/markets/stake`
+  reject new stakes if `closes_at - now < 15s`? Mitigates latency arb
+  but compresses the user's decision window. Lean: yes, 10s lockout,
+  shown in UI as "stakes locked." Decide before Day 3.
 - **What if Pyth Hermes is degraded at `closes_at`?** Backend retries
   for up to 5s past the deadline; if still no price, market goes to
   VOID with refund-all. Better than guessing.
 - **Per-asset market frequency.** Both BTC and ETH every minute is the
-  MVP. If one asset is dead-quiet (few stakers), do we throttle? Defer
-  to post-W2 data; ship every-minute for both first.
+  MVP. If one asset is dead-quiet (few stakers), do we throttle?
+  Defer to post-W2 data; ship every-minute for both first.
 - **Predictor accuracy / streak tracking.** Persisted? Computed live
   from `market_stakes` history? Defer to W3 polish — the database has
   the raw data either way.
+- **Variable penalty scaling.** Defer to v1.1 once static-30% data
+  exists. See the research doc for the proposed shape
+  (`p_eff = 0.30 + 0.40 × |majority − 0.5|`).

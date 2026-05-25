@@ -30,7 +30,7 @@ Each record carries: **Status · Date · Context · Decision · Consequences** (
 | [0011](0011-automated-payout.md) | Automated reward payout via server-signed transfers | Accepted — ⚠ key-on-server risk |
 | [0012](0012-multi-app-platform-substrate.md) | Hunch as a multi-app platform on the Circles trust graph | Superseded by 0013 (same day) |
 | [0013](0013-hunch-as-prediction-app.md) | Hunch is a gamified prediction app, not a platform | Accepted (supersedes 0012) |
-| [0014](0014-price-prediction-surface.md) | Price-prediction surface — 1-minute BTC/ETH markets, soft-pari-mutuel | Accepted — ⚠ penalty % TBD |
+| [0014](0014-price-prediction-surface.md) | Price-prediction surface — 1-minute BTC/ETH markets, soft-pari-mutuel | Accepted (penalty = 30%) |
 
 Source of record for these decisions: `PRD.md` (v1.2 → v2.0 in W2) and
 `PROJECT.md` (Locked decisions + Decisions log). ADRs distil them into

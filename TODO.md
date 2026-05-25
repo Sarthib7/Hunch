@@ -1,10 +1,12 @@
 # Hunch — status & what's left
 
-**Status (2026-05-23, v1.2):** Live and hardened. The chess substrate is the
-active game; instant vote ingestion + automated reward payouts are wired
-end-to-end on chain. A full security audit landed; 6 of 7 findings are fixed.
-The Garage marketplace PR is open and mergeable. Cycle closes **Sun
-2026-05-24, 23:59 CET**.
+**Status (2026-05-25):** Cycle 1 closed; v1.2 chess is live and hardened.
+**W2 in progress — price-prediction surface** (BTC + ETH 1-min markets,
+soft-pari-mutuel at 30% penalty, per `docs/adr/0014-price-prediction-surface.md`).
+Today's grilling reframed Hunch from "chess game" to "gamified prediction app
+with multiple surfaces" (ADR-0013 supersedes 0012); `CONTEXT.md` locked the
+canonical terminology; migration SQL drafted; code work pending user review
+of the migration before apply.
 
 ## 1. Done
 
@@ -81,16 +83,76 @@ The Garage marketplace PR is open and mergeable. Cycle closes **Sun
   - #5 (indexer 100-event poll window) — deferred as W2 polish (low impact
     at demo scale).
 
-## 2. Left before Sunday
+### Cycle 1 close + reframe (2026-05-24 → 2026-05-25)
 
-1. **Demo video** — judges can't self-serve a vote (curated voter set), so a
-   ~90-second recording of the vote → bot reply → payout flow is the proof.
-2. **Demo crowd** — recruit + trust more voters via `scripts/trust-voters.mjs`;
-   the cooldown encourages rotation among at least 3 active voters.
-3. **Marketplace PR review** — wait on aboutcircles to merge #37 (best
-   effort, no SLA). Nothing to push.
+- ✅ **Cycle 1 closed Sun 23:59 CET** — chess shipped; marketplace PR #37
+  open and CodeRabbit-clean (awaiting aboutcircles review, no SLA).
+- ✅ **Reframe documented (2026-05-25):** ADR-0013 supersedes ADR-0012 —
+  Hunch is one prediction app, not a multi-app platform. CONTEXT.md
+  established as the canonical glossary at repo root.
+- ✅ **ADR-0014 specs the W2 markets surface** — cron-opened 1-min
+  BTC + ETH markets, 1-CRC flat stake, soft-pari-mutuel at 30% penalty,
+  Pyth Hermes price feed, backend-signed resolution.
+- ✅ **Penalty research landed (2026-05-25):** 30% — medium confidence.
+  Full report at `docs/research/2026-05-25-penalty-percent.md`. Grounded
+  in loss aversion (λ≈2.25), prediction-market precedents, gamification
+  literature, and a sensitivity table.
 
-## 3. Optional polish
+## 2. W2 in progress — price-prediction surface
+
+Cycle 2 build, per ADR-0014. Migration drafted but not applied — pending
+user review before code work begins.
+
+**Day 1** — Supabase migration `add_markets_v1` (creates `markets`,
+`market_stakes`, `market_payouts`, `price_observations` + AFTER INSERT
+pool trigger + RLS). Scaffold `lib/markets/` module shells
+(`types.ts`, `lifecycle.ts`, `resolution.ts`, `payout.ts`, `pyth.ts`).
+**Day 2** — Pyth Hermes consumer + market lifecycle cron. Opens new BTC
+and ETH markets every minute on the boundary (records open_price from
+Pyth atomically); resolves expiring markets at close (samples
+close_price, sets winning_side, enqueues `market_payouts` via
+soft-pari-mutuel math). Realtime channel `price:BTC` / `price:ETH`
+published from the same cron for the live ticker.
+**Day 3** — `/api/markets/stake` instant ingest (mirrors `/api/vote`):
+client POSTs tx_hash after host signs; server waits for receipt, polls
+indexer until `CrcV2_TransferData` with `hunch.market.<id>.<side>` ref
+surfaces, records the stake, bumps the pool. `executePendingMarketPayouts`
+that signs `safeTransferFrom` from `POOL_PAYOUT_KEY`.
+**Day 4** — Mobile-first markets UI: `/markets` list (active + closing
++ resolved cards), `/markets/[id]` detail with LivePriceCard (large
+ticker + sparkline + direction colour), CountdownRing (pulses red <5s),
+TallyBar (UP/DOWN fill), sticky StakeBar (full-width UP green / DOWN
+red). Realtime price subscription. Haptic on stake, confetti on win.
+Update home to show "Open predictions" (chess card + market cards).
+**Day 5** — Wordle-style share card on result, OG image route, end-to-end
+smoke test of a market lifecycle, final mobile polish.
+
+## 3. Cycle 1 followups (low priority, fold into W2 polish if time)
+
+- **Demo video** of chess flow — judges can't self-serve a vote
+  (curated voter set); a ~90-s recording of vote → bot reply → payout
+  is the proof.
+- **Demo crowd recruitment** via `scripts/trust-voters.mjs` — the
+  cooldown encourages rotation among at least 3 active voters.
+- **Marketplace PR review** — wait on aboutcircles to merge #37 (best
+  effort, no SLA). Nothing to push.
+
+## 3a. Deferred (will revisit explicitly)
+
+- **Vercel auto-deploy fix** — every push since 2026-05-25 errors at the
+  Vercel adapter (`routes-manifest-deterministic.json` path mismatch).
+  Production alias still serves Saturday's Ready build, so users are
+  unaffected. Two options for fix: recreate the Vercel project from
+  scratch, or move the Next.js app from `app/` to repo root. Revisit
+  at end of W2 before we want to ship markets to production.
+- **PRD.md v2.0 rewrite** — current PRD is chess-only; needs a pass to
+  reflect the prediction-app framing and add the markets surface spec.
+  User-driven (significant rewrite).
+- **Marketplace rebrand** — `SUBMISSION.md` and the `static/miniapps.json`
+  entry still describe chess. Rebrand to "prediction app" in W3 after
+  markets ships — not on the strength of a vision.
+
+## 4. Optional polish (carried from cycle 1)
 
 - Marketplace tile logo PNG instead of SVG (existing entries all use PNG).
 - Cron-job.org schedule on `/api/cron` for true zero-touch operation when
@@ -114,12 +176,28 @@ The Garage marketplace PR is open and mergeable. Cycle closes **Sun
 - **Failed payouts are not auto-retried** past one attempt. Operator
   inspects and decides.
 
-## 5. Roadmap — explicitly NOT v1.2 (`PRD.md` §11)
+## 5. Roadmap (post-cycle-1 reset, locked 2026-05-25)
 
-- **W2** — variable-stake-flat-weight; spectator mode; pathfinder-routed
-  payouts (voter-preferred token); Swarm game archive.
-- **W3** — Stockfish-grade bot, brilliancy analysis, skill-based rewards.
-- **W4** — crowd-vs-crowd (circle-vs-circle / group-vs-group).
-- **W5** — Sybil hardening (layers 2-5), seasons & leaderboards.
-- An **on-chain payout module** on a pool Safe — eliminates the
-  POOL_PAYOUT_KEY-on-Vercel risk.
+- **W2** — price-prediction surface (this cycle). See section 2 above.
+- **W3** — custom spaces as Circles groups (Option A) + chess 1v1 inside
+  spaces + Safe-module payout (pulled forward from W5 because per-space
+  groups break the single `POOL_PAYOUT_KEY` contract).
+- **W4** — 2v2 chess in spaces (async deposit-to-pool, payment-intent
+  pattern) + variable horizons on markets (5m / 15m) + per-asset
+  throttling.
+- **W5** — voting surface (polls) + crowd-vs-crowd chess + Sybil
+  hardening (layers 2-5) + streaks & leaderboards + marketplace rebrand
+  to "prediction app."
+
+### Old cycle-1 roadmap items (PRD §11) — relocated
+
+- **Spectator mode** — incidentally satisfied by the markets surface
+  (anyone watches the price tick); chess-specific spectator UI deferred.
+- **Pathfinder-routed payouts** (voter-preferred token) — re-targeted to
+  W3 alongside spaces (when payouts cross group-CRC boundaries it
+  becomes necessary).
+- **Swarm game archive** — deferred indefinitely (on-chain `circles_events`
+  history is replay-sufficient).
+- **Stockfish-grade bot + brilliancy analysis + skill rewards** — chess
+  surface polish, no fixed slot. Defer until chess proves it deserves a
+  cycle (more app surface area before more chess depth).
