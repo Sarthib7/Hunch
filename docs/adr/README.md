@@ -28,6 +28,8 @@ Each record carries: **Status · Date · Context · Decision · Consequences** (
 | [0009](0009-vote-driven-cadence.md) | Vote-driven cadence — no timer, instant ingestion, cooldown | Accepted |
 | [0010](0010-trust-grant-waitlist.md) | Trust-grant waitlist for non-verified visitors | Accepted |
 | [0011](0011-automated-payout.md) | Automated reward payout via server-signed transfers | Accepted — ⚠ key-on-server risk |
+| [0012](0012-multi-app-platform-substrate.md) | Hunch as a multi-app platform on the Circles trust graph | Accepted |
 
-Source of record for these decisions: `PRD.md` (v1.2) and `PROJECT.md` (Locked
-decisions + Decisions log). ADRs distil them into one-decision-per-file form.
+Source of record for these decisions: `PRD.md` (v1.2 → v2.0 in W2) and
+`PROJECT.md` (Locked decisions + Decisions log). ADRs distil them into
+one-decision-per-file form.
