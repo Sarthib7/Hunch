@@ -1,7 +1,17 @@
 # ADR-0012: Hunch as a multi-app platform on the Circles trust graph
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0013](0013-hunch-as-prediction-app.md) (same day)
 - **Date:** 2026-05-25
+
+> **Superseded note (same-day):** the "multi-app platform" framing in this ADR
+> was over-engineered. ADR-0013 captures the actual decision — Hunch stays
+> ONE app; chess and price markets are two *prediction surfaces* inside it,
+> not separate apps. No `apps` table, no `AppEngine` registry, no platform
+> framing. The substrate this ADR proposed is replaced by surface-specific
+> tables that reuse code-level primitives (`lib/circles/trust.ts`,
+> `lib/circles/vote.ts` → renamed to `lib/circles/stake.ts`, the payout
+> execution pattern). Keep this ADR for the historical trail; do not
+> implement against it.
 
 ## Context
 
